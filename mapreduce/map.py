@@ -20,7 +20,7 @@ assert 0 <= args.shard < args.n_shards
 module = imp.load_source('module', args.mr)
 
 ff = args.input_files
-assert args.n_shards < len(ff)
+assert args.n_shards <= len(ff)
 a = len(ff) * args.shard / args.n_shards
 z = len(ff) * (args.shard + 1) / args.n_shards
 ff = ff[a:z]

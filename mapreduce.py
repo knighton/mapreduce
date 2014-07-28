@@ -16,13 +16,13 @@ ap.add_argument('--n_map_shards', type=int, default=20,
                 help='number of map shards')
 ap.add_argument('--n_reduce_shards', type=int, default=20,
                 help='number of reduce shards')
-ap.add_argument('--n_concurrent_domino_jobs', type=int, default=2,
+ap.add_argument('--n_concurrent_jobs', type=int, default=2,
                 help='maximum number of domino jobs to be running at once')
 
 ap.add_argument('--poll_done_interval_sec', type=int, default=30,
                 help='interval between successive checks that we are done')
 
-ap.add_argument('--platform', type=str, default='local',
+ap.add_argument('--use_domino', type=int, default=1,
                 help='which platform to run on (local or domino)')
 
 args = ap.parse_args()
@@ -30,13 +30,10 @@ args = ap.parse_args()
 print args.input_files
 
 # verify that we have input for each mapper.
-assert args.n_map_shards < len(args.input_files)
+assert args.n_map_shards <= len(args.input_files)
 
 # verify the --mr module (containing user's map/reduce functions) exists.
 module = imp.load_source('module', args.mr)
-
-# verify platform is valid.
-assert args.platform in ('domino', 'local')
 
 
 def wipe_done_files():
@@ -74,7 +71,7 @@ def main():
     # run mappers.
     print 'Starting mappers.'
     for i in range(args.n_map_shards):
-        if args.platform == 'domino':
+        if args.use_domino:
             pre = 'domino run '
             post = ''
         else:
@@ -92,6 +89,8 @@ def main():
     while not is_map_step_done():
         print 'Polling for mapper completion.'
         time.sleep(args.poll_done_interval_sec)
+        if args.use_domino:
+            os.system('domino download')
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
@@ -104,7 +103,7 @@ def main():
     # run reducers.
     print 'Starting reducers.'
     for i in range(args.n_reduce_shards):
-        if args.platform == 'domino':
+        if args.use_domino:
             pre = 'domino run '
             post = ''
         else:
@@ -120,6 +119,8 @@ def main():
     while not is_reduce_step_done():
         print 'Polling for reducer completion.'
         time.sleep(args.poll_done_interval_sec)
+        if args.use_domino:
+            os.system('domino download')
 
     wipe_done_files()
 
