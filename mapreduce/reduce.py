@@ -17,10 +17,10 @@ assert 0 <= args.shard < args.n_shards
 
 module = imp.load_source('module', args.mr)
 
-out_f = open('mapreduce/reduce.%d.out' % args.shard, 'w')
+out_f = open('mapreduce/tmp/reduce.out.%d' % args.shard, 'w')
 cur_key = None
 values = []
-for line in open('mapreduce/reduce.%d.in' % args.shard):
+for line in open('mapreduce/tmp/reduce.in.%d' % args.shard):
     j = json.loads(line)
     key, value = j[u'kv']
     if key == cur_key:
@@ -32,4 +32,4 @@ for line in open('mapreduce/reduce.%d.in' % args.shard):
         values = [value]
 out_f.close()
 
-open('mapreduce/reduce.%d.done' % args.shard, 'w').write('')
+open('mapreduce/tmp/reduce.done.%d' % args.shard, 'w').write('')

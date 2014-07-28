@@ -25,7 +25,7 @@ a = len(ff) * args.shard / args.n_shards
 z = len(ff) * (args.shard + 1) / args.n_shards
 ff = ff[a:z]
 
-out_f = open('mapreduce/map.%d.out' % args.shard, 'w')
+out_f = open('mapreduce/tmp/map.out.%d' % args.shard, 'w')
 for f in ff:
     for line in open(f):
         for key, value in module.map(line):
@@ -33,4 +33,4 @@ for f in ff:
             out_f.write(json.dumps(j) + '\n')
 out_f.close()
 
-open('mapreduce/map.%d.done' % args.shard, 'w').write('')
+open('mapreduce/tmp/map.done.%d' % args.shard, 'w').write('')

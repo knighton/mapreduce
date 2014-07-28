@@ -39,19 +39,19 @@ module = imp.load_source('module', args.mr)
 def wipe_done_files():
     # remove mapper 'done' files.
     for i in range(args.n_map_shards):
-        f = 'mapreduce/map.%d.done' % i
+        f = 'mapreduce/tmp/map.done.%d' % i
         if os.path.exists(f):
             os.remove(f)
 
     for i in range(args.n_reduce_shards):
-        f = 'mapreduce/reduce.%d.done' % i
+        f = 'mapreduce/tmp/reduce.done.%d' % i
         if os.path.exists(f):
             os.remove(f)
 
 
 def is_map_step_done():
     for i in range(args.n_map_shards):
-        f = 'mapreduce/map.%d.done' % i
+        f = 'mapreduce/tmp/map.done.%d' % i
         if not os.path.isfile(f):
             return False
     return True
@@ -59,13 +59,16 @@ def is_map_step_done():
 
 def is_reduce_step_done():
     for i in range(args.n_reduce_shards):
-        f = 'mapreduce/reduce.%d.done' % i
+        f = 'mapreduce/tmp/reduce.done.%d' % i
         if not os.path.isfile(f):
             return False
     return True
 
 
 def main():
+    if not os.path.exists('mapreduce/tmp'):
+        os.mkdir('mapreduce/tmp')
+
     wipe_done_files()
 
     # run mappers.

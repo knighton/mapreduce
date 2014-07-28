@@ -12,14 +12,14 @@ num_entries = 0
 
 sources = []
 for i in range(args.n_map_shards):
-    f = 'mapreduce/map.%d.out' % i
+    f = 'mapreduce/tmp/map.out.%d' % i
     lines = open(f).readlines()
     num_entries += len(lines)
     lines = sorted(lines)
     open(f, 'w').writelines(lines)
     sources.append(open(f))
 
-out_ff = map(lambda i: open('mapreduce/reduce.%d.in' % i, 'w'),
+out_ff = map(lambda i: open('mapreduce/tmp/reduce.in.%d' % i, 'w'),
              range(args.n_reduce_shards))
 count = 0
 for line in heapq.merge(*sources):
