@@ -1,0 +1,28 @@
+#!/usr/bin/python
+
+from argparse import ArgumentParser
+import heapq
+
+ap = ArgumentParser()
+ap.add_argument('--n_map_shards', type=int, help='number of mapper shards')
+ap.add_argument('--n_reduce_shards', type=int, help='number of reducer shards')
+args = ap.parse_args()
+
+num_entries = 0
+
+sources = []
+for i in range(args.n_map_shards):
+    f = 'mapreduce/map.%d.out' % i
+    lines = open(f).readlines()
+    num_entries += len(lines)
+    lines = sorted(lines)
+    open(f, 'w').writelines(lines)
+    sources.append(open(f))
+
+out_ff = map(lambda i: open('mapreduce/reduce.%d.in' % i, 'w'),
+             range(args.n_reduce_shards))
+count = 0
+for line in heapq.merge(*sources):
+    index = count * len(out_ff) / num_entries
+    out_ff[index].write(line)
+    count += 1
