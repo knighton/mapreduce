@@ -5,5 +5,5 @@ python mapreduce.py \
     --n_map_shards 4 \
     --n_reduce_shards 10 \
     --mr example.py \
-    --n_concurrent_jobs 3 \
+    --n_concurrent_jobs 4 \
     --use_domino 0

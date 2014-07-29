@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from argparse import ArgumentParser
+import collections
 import imp
 import os
 import time
@@ -49,20 +50,79 @@ def wipe_done_files():
             os.remove(f)
 
 
-def is_map_step_done():
-    for i in range(args.n_map_shards):
-        f = 'mapreduce/tmp/map.done.%d' % i
-        if not os.path.isfile(f):
-            return False
-    return True
+def wrap_cmd(cmd, use_domino):
+    if use_domino:
+        pre = 'domino run '
+        post = ''
+    else:
+        pre = ''
+        post = ' &'
+    return '%s%s%s' % (pre, cmd, post)
 
 
-def is_reduce_step_done():
-    for i in range(args.n_reduce_shards):
-        f = 'mapreduce/tmp/reduce.done.%d' % i
-        if not os.path.isfile(f):
-            return False
-    return True
+class ShardState(object):
+    NOT_STARTED = 0
+    IN_PROGRESS = 1
+    DONE = 2
+
+
+def update_shards_done(done_pattern, num_shards, use_domino, shard2state):
+    """go to disk and find out which shards are completed."""
+    if args.use_domino:
+        os.system('domino download')
+    for i in range(num_shards):
+        f = done_pattern % i
+        if os.path.isfile(f):
+            shard2state[i] = ShardState.DONE
+
+
+def are_all_shards_done(shard2state):
+    return list(set(shard2state.itervalues())) == [ShardState.DONE]
+
+
+def flip_dict(k2v):
+    """(k -> v) -> (v -> kk)."""
+    v2kk = collections.defaultdict(list)
+    for k, v in k2v.iteritems():
+        v2kk[v].append(k)
+    return v2kk
+
+
+def update_shards_in_progress(n_concurrent_jobs, shard2state):
+    """get the list of shards to start now.  update state accordingly."""
+    state2shards = flip_dict(shard2state)
+    n_todos = n_concurrent_jobs - len(state2shards[ShardState.IN_PROGRESS])
+    todos = state2shards[ShardState.NOT_STARTED][:n_todos]
+    for todo in todos:
+        shard2state[todo] = ShardState.IN_PROGRESS
+    return todos
+
+
+def run_shards(cmd, n_shards, n_concurrent_jobs, poll_done_interval_sec,
+               done_file_pattern, use_domino):
+    # shard -> state
+    # 0: not started
+    # 1: in progress
+    # 2: completed
+    shard2state = dict(zip(
+        range(n_shards),
+        [ShardState.NOT_STARTED] * n_shards))
+
+    while True:
+        print 'Checking for shard completion.'
+        update_shards_done(done_file_pattern, n_shards, use_domino, shard2state)
+        if are_all_shards_done(shard2state):
+            break
+
+        start_me = update_shards_in_progress(n_concurrent_jobs, shard2state)
+        if start_me:
+            print 'Starting shards', start_me
+        for shard in start_me:
+            s = cmd % shard
+            s = wrap_cmd(s, use_domino)
+            os.system(s)
+
+        time.sleep(poll_done_interval_sec)
 
 
 def main():
@@ -71,29 +131,15 @@ def main():
 
     wipe_done_files()
 
-    # run mappers.
     print 'Starting mappers.'
-    for i in range(args.n_map_shards):
-        if args.use_domino:
-            pre = 'domino run '
-            post = ''
-        else:
-            pre = ''
-            post = ' &'
-        cmd = """%spython mapreduce/map.py \
-            --shard %d \
-            --n_shards %d \
-            --input_files %s \
-            --mr %s%s""" % (
-            pre, i, args.n_map_shards, ' '.join(args.input_files), args.mr, post)
-        os.system(cmd)
-
-    # wait for mappers to complete.
-    while not is_map_step_done():
-        print 'Polling for mapper completion.'
-        time.sleep(args.poll_done_interval_sec)
-        if args.use_domino:
-            os.system('domino download')
+    cmd = """python mapreduce/map.py \
+        --shard %%d \
+        --n_shards %d \
+        --input_files %s \
+        --mr %s""" % (args.n_map_shards, ' '.join(args.input_files), args.mr)
+    done_file_pattern = 'mapreduce/tmp/map.done.%d'
+    run_shards(cmd, args.n_map_shards, args.n_concurrent_jobs,
+               args.poll_done_interval_sec, done_file_pattern, args.use_domino)
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
@@ -103,27 +149,14 @@ def main():
     """ % (args.n_map_shards, args.n_reduce_shards)
     os.system(cmd)
 
-    # run reducers.
     print 'Starting reducers.'
-    for i in range(args.n_reduce_shards):
-        if args.use_domino:
-            pre = 'domino run '
-            post = ''
-        else:
-            pre = ''
-            post = ' &'
-        cmd = """%spython mapreduce/reduce.py \
-            --shard %d \
-            --n_shards %d \
-            --mr %s%s""" % (pre, i, args.n_reduce_shards, args.mr, post)
-        os.system(cmd)
-
-    # wait for reducers to complete.
-    while not is_reduce_step_done():
-        print 'Polling for reducer completion.'
-        time.sleep(args.poll_done_interval_sec)
-        if args.use_domino:
-            os.system('domino download')
+    cmd = """python mapreduce/reduce.py \
+        --shard %%d \
+        --n_shards %d \
+        --mr %s""" % (args.n_reduce_shards, args.mr)
+    done_file_pattern = 'mapreduce/tmp/reduce.done.%d'
+    run_shards(cmd, args.n_reduce_shards, args.n_concurrent_jobs,
+               args.poll_done_interval_sec, done_file_pattern, args.use_domino)
 
     wipe_done_files()
 
