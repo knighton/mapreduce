@@ -1,24 +1,31 @@
 #!/usr/bin/python
 
 from argparse import ArgumentParser
+import glob
 import heapq
 import os
 
 ap = ArgumentParser()
-ap.add_argument('--n_map_shards', type=int, help='number of mapper shards')
-ap.add_argument('--n_reduce_shards', type=int, help='number of reducer shards')
+ap.add_argument('--work_dir', type=str,
+                help='directory containing files to shuffle')
+ap.add_argument('--n_reduce_shards', type=int,
+                help='number of reducers to create input files for')
 args = ap.parse_args()
 
-num_entries = 0
+assert args.work_dir
+assert args.n_reduce_shards
 
+num_entries = 0
+in_ff = sorted(glob.glob('%s/map.out.*' % args.work_dir))
 sources = []
-for i in range(args.n_map_shards):
-    f = 'mapreduce/tmp/map.out.%d' % i
+for f in in_ff:
     for line in open(f):
         num_entries += 1
-    os.system('sort %s' % f)
+    print 'Sorting %s' % f
+    os.system('sort %s -o %s' % (f, f))
     sources.append(open(f))
 
+print 'Merging'
 out_ff = map(lambda i: open('mapreduce/tmp/reduce.in.%d' % i, 'w'),
              range(args.n_reduce_shards))
 count = 0

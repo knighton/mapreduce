@@ -4,16 +4,20 @@ from argparse import ArgumentParser
 import collections
 import imp
 import os
+import random
+import string
 import time
 
 ap = ArgumentParser()
 ap.add_argument('--input_files', type=str, nargs='+',
                 help='list of input files to mappers')
+ap.add_argument('--output_dir', type=str, default='.',
+                help='directory to write output files to')
 
 ap.add_argument('--mr', type=str,
                 help='path to module containing map() and reduce() to use')
 
-ap.add_argument('--n_map_shards', type=int, default=20,
+ap.add_argument('--n_map_shards', type=int,
                 help='number of map shards')
 ap.add_argument('--n_reduce_shards', type=int, default=20,
                 help='number of reduce shards')
@@ -28,26 +32,14 @@ ap.add_argument('--use_domino', type=int, default=1,
 
 args = ap.parse_args()
 
-print args.input_files
-
 # verify that we have input for each mapper.
-assert args.n_map_shards <= len(args.input_files)
+if args.n_map_shards is None:
+    args.n_map_shards = len(args.input_files)
+else:
+    assert args.n_map_shards <= len(args.input_files)
 
 # verify the --mr module (containing user's map/reduce functions) exists.
 module = imp.load_source('module', args.mr)
-
-
-def wipe_done_files():
-    # remove mapper 'done' files.
-    for i in range(args.n_map_shards):
-        f = 'mapreduce/tmp/map.done.%d' % i
-        if os.path.exists(f):
-            os.remove(f)
-
-    for i in range(args.n_reduce_shards):
-        f = 'mapreduce/tmp/reduce.done.%d' % i
-        if os.path.exists(f):
-            os.remove(f)
 
 
 def wrap_cmd(cmd, use_domino):
@@ -125,40 +117,55 @@ def run_shards(cmd, n_shards, n_concurrent_jobs, poll_done_interval_sec,
         time.sleep(poll_done_interval_sec)
 
 
+def random_string(length):
+    choices = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    cc = []
+    for i in range(length):
+        cc.append(random.choice(choices))
+    return ''.join(cc)
+
+
 def main():
-    if not os.path.exists('mapreduce/tmp'):
-        os.mkdir('mapreduce/tmp')
+    print '%d input files.' % len(args.input_files)
 
-    wipe_done_files()
+    # create temporary working directory.
+    work_dir = 'mapreduce/tmp/%s' % random_string(16)
+    if os.path.exists(work_dir):
+        os.system('rm -rf %s' % work_dir)
+    os.makedirs(work_dir)
+    print 'Working directory: %s' % work_dir
 
-    print 'Starting mappers.'
+    print 'Starting %d mappers.' % args.n_map_shards
     cmd = """python mapreduce/map.py \
         --shard %%d \
         --n_shards %d \
         --input_files %s \
-        --mr %s""" % (args.n_map_shards, ' '.join(args.input_files), args.mr)
-    done_file_pattern = 'mapreduce/tmp/map.done.%d'
+        --mr %s \
+        --work_dir %s""" % (
+        args.n_map_shards, ' '.join(args.input_files), args.mr, work_dir)
+    done_file_pattern = '%s/map.done.%%d' % work_dir
     run_shards(cmd, args.n_map_shards, args.n_concurrent_jobs,
                args.poll_done_interval_sec, done_file_pattern, args.use_domino)
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
     cmd = """python mapreduce/shuffle.py \
-        --n_map_shards %d \
+        --work_dir %s \
         --n_reduce_shards %d
-    """ % (args.n_map_shards, args.n_reduce_shards)
+    """ % (work_dir, args.n_reduce_shards)
     os.system(cmd)
 
-    print 'Starting reducers.'
+    print 'Starting %d reducers.' % args.n_reduce_shards
     cmd = """python mapreduce/reduce.py \
         --shard %%d \
         --n_shards %d \
-        --mr %s""" % (args.n_reduce_shards, args.mr)
-    done_file_pattern = 'mapreduce/tmp/reduce.done.%d'
+        --mr %s \
+        --work_dir %s \
+        --output_dir %s""" % (
+        args.n_reduce_shards, args.mr, work_dir, args.output_dir)
+    done_file_pattern = '%s/reduce.done.%%d' % work_dir
     run_shards(cmd, args.n_reduce_shards, args.n_concurrent_jobs,
                args.poll_done_interval_sec, done_file_pattern, args.use_domino)
-
-    wipe_done_files()
 
     # done.
     print 'Mapreduce done.'
