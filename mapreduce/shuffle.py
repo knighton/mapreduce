@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 import heapq
+import os
 
 ap = ArgumentParser()
 ap.add_argument('--n_map_shards', type=int, help='number of mapper shards')
@@ -13,10 +14,9 @@ num_entries = 0
 sources = []
 for i in range(args.n_map_shards):
     f = 'mapreduce/tmp/map.out.%d' % i
-    lines = open(f).readlines()
-    num_entries += len(lines)
-    lines = sorted(lines)
-    open(f, 'w').writelines(lines)
+    for line in open(f):
+        num_entries += 1
+    os.system('sort %s' % f)
     sources.append(open(f))
 
 out_ff = map(lambda i: open('mapreduce/tmp/reduce.in.%d' % i, 'w'),
