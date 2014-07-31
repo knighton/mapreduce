@@ -47,7 +47,7 @@ def wrap_cmd(cmd, use_domino):
         pre = 'domino run '
         post = ''
     else:
-        pre = ''
+        pre = 'python '
         post = ' &'
     return '%s%s%s' % (pre, cmd, post)
 
@@ -136,7 +136,7 @@ def main():
     print 'Working directory: %s' % work_dir
 
     print 'Starting %d mappers.' % args.n_map_shards
-    cmd = """python mapreduce/map.py \
+    cmd = """mapreduce/map.py \
         --shard %%d \
         --n_shards %d \
         --input_files %s \
@@ -156,7 +156,7 @@ def main():
     os.system(cmd)
 
     print 'Starting %d reducers.' % args.n_reduce_shards
-    cmd = """python mapreduce/reduce.py \
+    cmd = """mapreduce/reduce.py \
         --shard %%d \
         --n_shards %d \
         --mr %s \
