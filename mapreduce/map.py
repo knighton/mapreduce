@@ -12,8 +12,10 @@ ap.add_argument('--n_shards', type=int,
                 help='out of how many shards')
 ap.add_argument('--input_files', type=str, nargs='+',
                 help='input files')
-ap.add_argument('--mr', type=str,
-                help='path to module containing map() and reduce() to use')
+ap.add_argument('--map_module', type=str,
+                help='path to module containing mapper')
+ap.add_argument('--map_func', type=str,
+                help='mapper function name')
 ap.add_argument('--work_dir', type=str,
                 help='directory containing map output files')
 args = ap.parse_args()
@@ -21,7 +23,8 @@ args = ap.parse_args()
 assert 0 <= args.shard < args.n_shards
 assert args.work_dir
 
-module = imp.load_source('module', args.mr)
+map_module = imp.load_source('map_module', args.map_module)
+map_func = getattr(map_module, args.map_func)
 
 # get our slice of the input files.
 ff = args.input_files
@@ -36,7 +39,7 @@ out_f = open(out_fn, 'w')
 count = 0
 for f in ff:
     for line in open(f):
-        for key, value in module.map(line):
+        for key, value in map_func(line):
             j = {'kv': [key, value]}
             out_f.write(json.dumps(j) + '\n')
             count += 1

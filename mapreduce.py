@@ -14,8 +14,10 @@ ap.add_argument('--input_files', type=str, nargs='+',
 ap.add_argument('--output_dir', type=str, default='.',
                 help='directory to write output files to')
 
-ap.add_argument('--mr', type=str,
-                help='path to module containing map() and reduce() to use')
+ap.add_argument('--map_module', type=str)
+ap.add_argument('--map_func', type=str)
+ap.add_argument('--reduce_module', type=str)
+ap.add_argument('--reduce_func', type=str)
 
 ap.add_argument('--n_map_shards', type=int,
                 help='number of map shards')
@@ -38,8 +40,11 @@ if args.n_map_shards is None:
 else:
     assert args.n_map_shards <= len(args.input_files)
 
-# verify the --mr module (containing user's map/reduce functions) exists.
-module = imp.load_source('module', args.mr)
+# verify functions exist.
+module = imp.load_source('module', args.map_module)
+func = getattr(module, args.map_func)
+module = imp.load_source('module', args.reduce_module)
+func = getattr(module, args.reduce_func)
 
 
 def wrap_cmd(cmd, use_domino):
@@ -140,9 +145,11 @@ def main():
         --shard %%d \
         --n_shards %d \
         --input_files %s \
-        --mr %s \
+        --map_module %s \
+        --map_func %s \
         --work_dir %s""" % (
-        args.n_map_shards, ' '.join(args.input_files), args.mr, work_dir)
+        args.n_map_shards, ' '.join(args.input_files), args.map_module,
+        args.map_func, work_dir)
     done_file_pattern = '%s/map.done.%%d' % work_dir
     run_shards(cmd, args.n_map_shards, args.n_concurrent_jobs,
                args.poll_done_interval_sec, done_file_pattern, args.use_domino)
@@ -159,10 +166,12 @@ def main():
     cmd = """mapreduce/reduce.py \
         --shard %%d \
         --n_shards %d \
-        --mr %s \
+        --reduce_module %s \
+        --reduce_func %s \
         --work_dir %s \
         --output_dir %s""" % (
-        args.n_reduce_shards, args.mr, work_dir, args.output_dir)
+        args.n_reduce_shards, args.reduce_module, args.reduce_func, work_dir,
+        args.output_dir)
     done_file_pattern = '%s/reduce.done.%%d' % work_dir
     run_shards(cmd, args.n_reduce_shards, args.n_concurrent_jobs,
                args.poll_done_interval_sec, done_file_pattern, args.use_domino)

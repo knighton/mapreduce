@@ -9,8 +9,10 @@ ap.add_argument('--shard', type=int,
                 help='which shard we are')
 ap.add_argument('--n_shards', type=int,
                 help='out of how many shards')
-ap.add_argument('--mr', type=str,
-                help='path to module containing map() and reduce() to use')
+ap.add_argument('--reduce_module', type=str,
+                help='path to module containing reducer')
+ap.add_argument('--reduce_func', type=str,
+                help='reduce function name')
 ap.add_argument('--work_dir', type=str,
                 help='directory containing reduce input files')
 ap.add_argument('--output_dir', type=str, default='.',
@@ -20,7 +22,8 @@ args = ap.parse_args()
 assert 0 <= args.shard < args.n_shards
 assert args.work_dir
 
-module = imp.load_source('module', args.mr)
+reduce_module = imp.load_source('reduce_module', args.reduce_module)
+reduce_func = getattr(reduce_module, args.reduce_func)
 
 out_f = open('%s/reduce.out.%d' % (args.output_dir, args.shard), 'w')
 cur_key = None
@@ -31,7 +34,7 @@ for line in open('%s/reduce.in.%d' % (args.work_dir, args.shard)):
     if key == cur_key:
         values.append(value)
     else:
-        for v in module.reduce(cur_key, values):
+        for v in reduce_func(cur_key, values):
             out_f.write(v + '\n')
         cur_key = key
         values = [value]
