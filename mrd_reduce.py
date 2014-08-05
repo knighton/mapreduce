@@ -3,6 +3,7 @@
 from argparse import ArgumentParser
 import imp
 import json
+import os
 
 ap = ArgumentParser()
 ap.add_argument('--shard', type=int,
@@ -25,6 +26,8 @@ assert args.work_dir
 reduce_module = imp.load_source('reduce_module', args.reduce_module)
 reduce_func = getattr(reduce_module, args.reduce_func)
 
+if not os.path.exists(args.output_dir):
+    os.makedirs(args.output_dir)
 out_f = open('%s/reduce.out.%d' % (args.output_dir, args.shard), 'w')
 cur_key = None
 values = []

@@ -21,12 +21,12 @@ ap.add_argument('--reduce_func', type=str)
 
 ap.add_argument('--n_map_shards', type=int,
                 help='number of map shards')
-ap.add_argument('--n_reduce_shards', type=int, default=20,
+ap.add_argument('--n_reduce_shards', type=int, default=10,
                 help='number of reduce shards')
 ap.add_argument('--n_concurrent_jobs', type=int, default=2,
                 help='maximum number of domino jobs to be running at once')
 
-ap.add_argument('--poll_done_interval_sec', type=int, default=30,
+ap.add_argument('--poll_done_interval_sec', type=int, default=45,
                 help='interval between successive checks that we are done')
 
 ap.add_argument('--use_domino', type=int, default=1,
@@ -34,11 +34,11 @@ ap.add_argument('--use_domino', type=int, default=1,
 
 args = ap.parse_args()
 
+
 # verify that we have input for each mapper.
 if args.n_map_shards is None:
     args.n_map_shards = len(args.input_files)
-else:
-    assert args.n_map_shards <= len(args.input_files)
+
 
 # verify functions exist.
 module = imp.load_source('module', args.map_module)
@@ -141,7 +141,7 @@ def main():
     print 'Working directory: %s' % work_dir
 
     print 'Starting %d mappers.' % args.n_map_shards
-    cmd = """mapreduce/map.py \
+    cmd = """mrd_map.py \
         --shard %%d \
         --n_shards %d \
         --input_files %s \
@@ -156,14 +156,14 @@ def main():
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
-    cmd = """python mapreduce/shuffle.py \
+    cmd = """python mrd_shuffle.py \
         --work_dir %s \
         --n_reduce_shards %d
     """ % (work_dir, args.n_reduce_shards)
     os.system(cmd)
 
     print 'Starting %d reducers.' % args.n_reduce_shards
-    cmd = """mapreduce/reduce.py \
+    cmd = """mrd_reduce.py \
         --shard %%d \
         --n_shards %d \
         --reduce_module %s \
