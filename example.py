@@ -22,7 +22,7 @@ def map2(line):
 
 
 def reduce2(k, vv):
-    yield '%s -> %d' % k, sum(map(int, vv))
+    yield '%s -> %d' % (k, sum(map(int, vv)))
 
 
 def main():
