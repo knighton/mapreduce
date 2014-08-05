@@ -1,10 +1,13 @@
 #!/usr/bin/python
 
 from argparse import ArgumentParser
+import collections
 import imp
 import json
 import math
 import os
+
+import mrd_util
 
 ap = ArgumentParser()
 ap.add_argument('--shard', type=int,
@@ -59,16 +62,27 @@ map_module = imp.load_source('map_module', args.map_module)
 map_func = getattr(map_module, args.map_func)
 
 
+# the counters.
+counters = collections.defaultdict(lambda: collections.defaultdict(int))
+def increment_counter(key, sub_key, incr):
+    counters[key][sub_key] += incr
+
+
 # process each line of input.
 out_fn = '%s/map.out.%d' % (args.work_dir, args.shard)
 out_f = open(out_fn, 'w')
 count = 0
 for line in each_input_line(args.input_files, args.shard, args.n_shards):
-    for key, value in map_func(line):
+    for key, value in map_func(line, increment_counter):
         j = {'kv': [key, value]}
         out_f.write(json.dumps(j) + '\n')
         count += 1
 out_f.close()
+
+
+# write out the counters to file.
+f = '%s/map.counters.%d' % (args.work_dir, args.shard)
+open(f, 'w').write(mrd_util.json_str_from_counters(counters))
 
 
 # write how many entries were written for reducer balancing purposes.

@@ -6,22 +6,23 @@ import json
 import mrdomino
 
 
-def map1(line):
+def map1(line, increment_counter):
     j = json.loads(line)
     yield j[u'object'][u'user_id'], j
 
 
-def reduce1(k, vv):
+def reduce1(k, vv, increment_counter):
     yield '%s -> %d posts' % (k, len(vv))
 
 
-def map2(line):
+def map2(line, increment_counter):
     ss = line.split()
     for s in ss:
+        increment_counter('map2', 'len_%03d' % len(s), 10)
         yield s, 1
 
 
-def reduce2(k, vv):
+def reduce2(k, vv, increment_counter):
     yield '%s -> %d' % (k, sum(map(int, vv)))
 
 

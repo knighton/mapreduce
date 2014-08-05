@@ -55,3 +55,4 @@ time python mrd_step.py \
             settings['use_domino'],
         )
         os.system(cmd)
+    print 'All done.'

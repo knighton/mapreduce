@@ -8,6 +8,8 @@ import random
 import string
 import time
 
+import mrd_util
+
 ap = ArgumentParser()
 ap.add_argument('--input_files', type=str, nargs='+',
                 help='list of input files to mappers')
@@ -154,6 +156,11 @@ def main():
     run_shards(cmd, args.n_map_shards, args.n_concurrent_jobs,
                args.poll_done_interval_sec, done_file_pattern, args.use_domino)
 
+    ff = map(lambda (work_dir, shard): '%s/map.counters.%d' % (work_dir, shard),
+             zip([work_dir] * args.n_map_shards,
+                 range(args.n_map_shards)))
+    mrd_util.show_combined_counters(ff)
+
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
     cmd = """python mrd_shuffle.py \
@@ -176,8 +183,16 @@ def main():
     run_shards(cmd, args.n_reduce_shards, args.n_concurrent_jobs,
                args.poll_done_interval_sec, done_file_pattern, args.use_domino)
 
+    ff = map(lambda (work_dir, shard): '%s/map.counters.%d' % (work_dir, shard),
+             zip([work_dir] * args.n_map_shards,
+                 range(args.n_map_shards)))
+    ff += map(lambda (work_dir, shard): '%s/reduce.counters.%d' % (work_dir, shard),
+              zip([work_dir] * args.n_reduce_shards,
+                  range(args.n_reduce_shards)))
+    mrd_util.show_combined_counters(ff)
+
     # done.
-    print 'Mapreduce done.'
+    print 'Mapreduce step done.'
 
 
 if __name__ == '__main__':
