@@ -1,24 +1,13 @@
 #!/bin/sh
 
 import os
-import random
-import string
 
-
-def random_string(length):
-    choices = string.ascii_lowercase + string.ascii_uppercase + string.digits
-    cc = []
-    for i in range(length):
-        cc.append(random.choice(choices))
-    return ''.join(cc)
-
-
-def mk_tmpdir():
-    return 'mapreduce/tmp/%s' % random_string(16)
+import mrd_util
 
 
 def mapreduce(steps, settings):
-    tmp_dirs = map(lambda _: mk_tmpdir(), range(len(steps) - 1))
+    tmp_dirs = map(lambda _: mrd_util.mk_tmpdir(),
+                   range(len(steps) - 1))
 
     input_file_lists = [settings['input_files']]
     output_dirs = []

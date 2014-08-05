@@ -2,6 +2,8 @@
 
 import collections
 import json
+import random
+import string
 
 
 def json_str_from_counters(counters):
@@ -56,3 +58,15 @@ def show_counters(d):
 def show_combined_counters(ff):
     d = combine_counters_from_files(ff)
     show_counters(d)
+
+
+def random_string(length):
+    choices = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    cc = []
+    for i in range(length):
+        cc.append(random.choice(choices))
+    return ''.join(cc)
+
+
+def mk_tmpdir():
+    return 'mapreduce/tmp/%s' % random_string(16)

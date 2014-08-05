@@ -124,19 +124,11 @@ def run_shards(cmd, n_shards, n_concurrent_jobs, poll_done_interval_sec,
         time.sleep(poll_done_interval_sec)
 
 
-def random_string(length):
-    choices = string.ascii_lowercase + string.ascii_uppercase + string.digits
-    cc = []
-    for i in range(length):
-        cc.append(random.choice(choices))
-    return ''.join(cc)
-
-
 def main():
     print '%d input files.' % len(args.input_files)
 
     # create temporary working directory.
-    work_dir = 'mapreduce/tmp/%s' % random_string(16)
+    work_dir = mrd_util.mk_tmpdir()
     if os.path.exists(work_dir):
         os.system('rm -rf %s' % work_dir)
     os.makedirs(work_dir)
