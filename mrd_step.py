@@ -35,6 +35,7 @@ ap.add_argument('--poll_done_interval_sec', type=int, default=45,
 
 
 args = ap.parse_args()
+print 'Mapreduce step:', args
 
 
 # verify that we have input for each mapper.
@@ -112,6 +113,15 @@ def get_shard_groups_to_start(
     return start_me
 
 
+def show_shard_state(shard2state, n_shards_per_machine):
+    shards = sorted(shard2state)
+    print 'Shard state:',
+    for i in range(0, len(shards), n_shards_per_machine):
+        machine_shards = shards[i:i + n_shards_per_machine]
+        print map(lambda i: shard2state[i], machine_shards),
+    print
+
+
 def schedule_machines(
         cmd, n_shards, n_shards_per_machine, n_concurrent_machines,
         poll_done_interval_sec, done_file_pattern, use_domino):
@@ -128,7 +138,8 @@ def schedule_machines(
         print 'Checking for shard completion.'
         update_shards_done(done_file_pattern, n_shards, use_domino, shard2state)
 
-        # if all are done, break.
+        show_shard_state(shard2state, n_shards_per_machine)
+
         if are_all_shards_done(shard2state):
             break
 
@@ -180,10 +191,8 @@ def main():
         args.n_concurrent_machines, args.poll_done_interval_sec,
         done_file_pattern, args.use_domino)
 
-    ff = map(lambda (work_dir, shard): '%s/map.counters.%d' % (work_dir, shard),
-             zip([work_dir] * args.n_map_shards,
-                 range(args.n_map_shards)))
-    mrd_util.show_combined_counters(ff)
+    mrd_util.show_combined_counters(
+        work_dir, args.n_map_shards, args.n_reduce_shards)
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
@@ -209,13 +218,8 @@ def main():
         args.n_concurrent_machines, args.poll_done_interval_sec,
         done_file_pattern, args.use_domino)
 
-    ff = map(lambda (work_dir, shard): '%s/map.counters.%d' % (work_dir, shard),
-             zip([work_dir] * args.n_map_shards,
-                 range(args.n_map_shards)))
-    ff += map(lambda (work_dir, shard): '%s/reduce.counters.%d' % (work_dir, shard),
-              zip([work_dir] * args.n_reduce_shards,
-                  range(args.n_reduce_shards)))
-    mrd_util.show_combined_counters(ff)
+    mrd_util.show_combined_counters(
+        work_dir, args.n_map_shards, args.n_reduce_shards)
 
     # done.
     print 'Mapreduce step done.'

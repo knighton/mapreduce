@@ -38,9 +38,11 @@ def increment_counter(key, sub_key, incr):
     counters[key][sub_key] += incr
 
 
-# process each (key, value) pair.
 if not os.path.exists(args.output_dir):
     os.makedirs(args.output_dir)
+
+
+# process each (key, value) pair.
 out_f = open('%s/reduce.out.%d' % (args.output_dir, args.shard), 'w')
 cur_key = None
 values = []

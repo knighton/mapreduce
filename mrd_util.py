@@ -2,6 +2,7 @@
 
 import collections
 import json
+import os
 import random
 import string
 
@@ -55,9 +56,21 @@ def show_counters(d):
             print '    %s: %d' % (sub_key, count)
 
 
-def show_combined_counters(ff):
+def show_combined_counters_from_files(ff):
     d = combine_counters_from_files(ff)
     show_counters(d)
+
+
+def show_combined_counters(work_dir, n_map_shards, n_reduce_shards):
+    ff = map(lambda (work_dir, shard): '%s/map.counters.%d' % (work_dir, shard),
+             zip([work_dir] * n_map_shards,
+                 range(n_map_shards)))
+    ff += map(lambda (work_dir, shard):
+              '%s/reduce.counters.%d' % (work_dir, shard),
+              zip([work_dir] * n_reduce_shards,
+                  range(n_reduce_shards)))
+    ff = filter(os.path.exists, ff)
+    show_combined_counters_from_files(ff)
 
 
 def random_string(length):
