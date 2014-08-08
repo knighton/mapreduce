@@ -1,11 +1,8 @@
 #!/usr/bin/python
 
 from argparse import ArgumentParser
-import collections
 import imp
 import os
-import random
-import string
 import time
 
 import mrd_util
@@ -25,14 +22,17 @@ ap.add_argument('--n_map_shards', type=int,
                 help='number of map shards')
 ap.add_argument('--n_reduce_shards', type=int, default=10,
                 help='number of reduce shards')
-ap.add_argument('--n_concurrent_jobs', type=int, default=2,
+
+ap.add_argument('--use_domino', type=int, default=1,
+                help='which platform to run on (local or domino)')
+ap.add_argument('--n_concurrent_machines', type=int, default=2,
                 help='maximum number of domino jobs to be running at once')
+ap.add_argument('--n_shards_per_machine', type=int, default=1,
+                help='number of processes to spawn per domino job (-1 for all)')
 
 ap.add_argument('--poll_done_interval_sec', type=int, default=45,
                 help='interval between successive checks that we are done')
 
-ap.add_argument('--use_domino', type=int, default=1,
-                help='which platform to run on (local or domino)')
 
 args = ap.parse_args()
 
@@ -79,26 +79,42 @@ def are_all_shards_done(shard2state):
     return list(set(shard2state.itervalues())) == [ShardState.DONE]
 
 
-def flip_dict(k2v):
-    """(k -> v) -> (v -> kk)."""
-    v2kk = collections.defaultdict(list)
-    for k, v in k2v.iteritems():
-        v2kk[v].append(k)
-    return v2kk
-
-
-def update_shards_in_progress(n_concurrent_jobs, shard2state):
+def get_shard_groups_to_start(
+        n_concurrent_machines, n_shards_per_machine, shard2state):
     """get the list of shards to start now.  update state accordingly."""
-    state2shards = flip_dict(shard2state)
-    n_todos = n_concurrent_jobs - len(state2shards[ShardState.IN_PROGRESS])
-    todos = state2shards[ShardState.NOT_STARTED][:n_todos]
-    for todo in todos:
-        shard2state[todo] = ShardState.IN_PROGRESS
-    return todos
+    # get the state of each domino job (group of shards).
+    shards = sorted(shard2state)
+    machines = []
+    for i in range(0, len(shards), n_shards_per_machine):
+        machine_shards = shards[i:i + n_shards_per_machine]
+        machine_status = min(map(lambda shard: shard2state[shard],
+                                 machine_shards))
+        machines.append(machine_status)
+
+    # get how many domino jobs to start up.
+    n_machines_in_progress = \
+        len(filter(lambda m: m == ShardState.IN_PROGRESS, machines))
+    n_todos = n_concurrent_machines - n_machines_in_progress
+
+    # get up to n_todos domino jobs to start.
+    start_me = []
+    count = 0
+    for i, m in enumerate(machines):
+        if m == ShardState.NOT_STARTED:
+            machine_shards = range(i * n_shards_per_machine,
+                                   (i + 1) * n_shards_per_machine)
+            machine_shards = filter(lambda n: n < len(shards), machine_shards)
+            start_me.append(machine_shards)
+            count += 1
+            if count == n_todos:
+                break
+
+    return start_me
 
 
-def run_shards(cmd, n_shards, n_concurrent_jobs, poll_done_interval_sec,
-               done_file_pattern, use_domino):
+def schedule_machines(
+        cmd, n_shards, n_shards_per_machine, n_concurrent_machines,
+        poll_done_interval_sec, done_file_pattern, use_domino):
     # shard -> state
     # 0: not started
     # 1: in progress
@@ -108,19 +124,33 @@ def run_shards(cmd, n_shards, n_concurrent_jobs, poll_done_interval_sec,
         [ShardState.NOT_STARTED] * n_shards))
 
     while True:
+        # go to disk and look for shard done files.
         print 'Checking for shard completion.'
         update_shards_done(done_file_pattern, n_shards, use_domino, shard2state)
+
+        # if all are done, break.
         if are_all_shards_done(shard2state):
             break
 
-        start_me = update_shards_in_progress(n_concurrent_jobs, shard2state)
+        # if we can start any more domino jobs (per n_concurrent_machines
+        # restriction), get the ones to start.
+        start_me = get_shard_groups_to_start(
+            n_concurrent_machines, n_shards_per_machine, shard2state)
+
+        # start the jobs.
         if start_me:
-            print 'Starting shards', start_me
-        for shard in start_me:
-            s = cmd % shard
+            print 'Starting shard groups:', start_me
+        for shards in start_me:
+            # execute command.
+            s = cmd % ','.join(map(str, shards))
             s = wrap_cmd(s, use_domino)
             os.system(s)
 
+            # note them as started.
+            for shard in shards:
+                shard2state[shard] = ShardState.IN_PROGRESS
+
+        # wait to poll.
         time.sleep(poll_done_interval_sec)
 
 
@@ -135,8 +165,8 @@ def main():
     print 'Working directory: %s' % work_dir
 
     print 'Starting %d mappers.' % args.n_map_shards
-    cmd = """mrd_map.py \
-        --shard %%d \
+    cmd = """mrd_map_one_machine.py \
+        --shards %%s \
         --n_shards %d \
         --input_files %s \
         --map_module %s \
@@ -145,8 +175,10 @@ def main():
         args.n_map_shards, ' '.join(args.input_files), args.map_module,
         args.map_func, work_dir)
     done_file_pattern = '%s/map.done.%%d' % work_dir
-    run_shards(cmd, args.n_map_shards, args.n_concurrent_jobs,
-               args.poll_done_interval_sec, done_file_pattern, args.use_domino)
+    schedule_machines(
+        cmd, args.n_map_shards, args.n_shards_per_machine,
+        args.n_concurrent_machines, args.poll_done_interval_sec,
+        done_file_pattern, args.use_domino)
 
     ff = map(lambda (work_dir, shard): '%s/map.counters.%d' % (work_dir, shard),
              zip([work_dir] * args.n_map_shards,
@@ -162,8 +194,8 @@ def main():
     os.system(cmd)
 
     print 'Starting %d reducers.' % args.n_reduce_shards
-    cmd = """mrd_reduce.py \
-        --shard %%d \
+    cmd = """mrd_reduce_one_machine.py \
+        --shards %%s \
         --n_shards %d \
         --reduce_module %s \
         --reduce_func %s \
@@ -172,8 +204,10 @@ def main():
         args.n_reduce_shards, args.reduce_module, args.reduce_func, work_dir,
         args.output_dir)
     done_file_pattern = '%s/reduce.done.%%d' % work_dir
-    run_shards(cmd, args.n_reduce_shards, args.n_concurrent_jobs,
-               args.poll_done_interval_sec, done_file_pattern, args.use_domino)
+    schedule_machines(
+        cmd, args.n_reduce_shards, args.n_shards_per_machine,
+        args.n_concurrent_machines, args.poll_done_interval_sec,
+        done_file_pattern, args.use_domino)
 
     ff = map(lambda (work_dir, shard): '%s/map.counters.%d' % (work_dir, shard),
              zip([work_dir] * args.n_map_shards,

@@ -29,8 +29,9 @@ time python mrd_step.py \
     --reduce_module %s \
     --reduce_func %s \
     --n_reduce_shards %d \
-    --n_concurrent_jobs %d \
-    --use_domino %d
+    --use_domino %d \
+    --n_concurrent_machines %d \
+    --n_shards_per_machine %d
 """ % (
             ' '.join(input_file_lists[i]),
             output_dirs[i],
@@ -40,8 +41,9 @@ time python mrd_step.py \
             step['reducer'].func_globals['__file__'],
             step['reducer'].func_name,
             step['n_reducers'],
-            settings['n_concurrent_jobs'],
             settings['use_domino'],
+            settings['n_concurrent_machines'],
+            settings['n_shards_per_machine'],
         )
         os.system(cmd)
     print 'All done.'

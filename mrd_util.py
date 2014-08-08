@@ -69,4 +69,4 @@ def random_string(length):
 
 
 def mk_tmpdir():
-    return 'mapreduce/tmp/%s' % random_string(16)
+    return 'tmp/%s' % random_string(16)
