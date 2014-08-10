@@ -1,12 +1,9 @@
 #!/usr/bin/python
 
 from argparse import ArgumentParser
-import collections
-import imp
-import json
-import os
+from multiprocessing import Pool
 
-import mrd_util
+import mrd_reduce_one_shard
 
 ap = ArgumentParser()
 ap.add_argument('--shards', type=str,
@@ -24,28 +21,12 @@ ap.add_argument('--output_dir', type=str, default='.',
 args = ap.parse_args()
 
 
-# get/check shards.
+def do_shard(shard):
+    mrd_reduce_one_shard.reduce(
+        args.reduce_module, args.reduce_func, args.work_dir, args.output_dir,
+        shard)
+
+
 shards = map(int, args.shards.split(','))
-for shard in shards:
-    assert 0 <= shard < args.n_shards
-assert args.work_dir
-
-
-# find the reduce function.
-reduce_module = imp.load_source('reduce_module', args.reduce_module)
-reduce_func = getattr(reduce_module, args.reduce_func)
-
-
-# execute each shard on this machine.
-for shard in shards:
-    cmd = """
-python mrd_reduce_one_shard.py \
-    --shard %d \
-    --n_shards %d \
-    --reduce_module %s \
-    --reduce_func %s \
-    --work_dir %s \
-    --output_dir %s &""" % (
-        shard, args.n_shards, args.reduce_module, args.reduce_func,
-        args.work_dir, args.output_dir)
-    os.system(cmd)
+pool = Pool(processes=len(shards))
+pool.map(do_shard, shards)

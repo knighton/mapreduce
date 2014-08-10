@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
 from argparse import ArgumentParser
-import imp
-import os
+from multiprocessing import Pool
+
+import mrd_map_one_shard
 
 ap = ArgumentParser()
 ap.add_argument('--shards', type=str,
@@ -19,28 +20,13 @@ ap.add_argument('--work_dir', type=str,
                 help='directory containing map output files')
 args = ap.parse_args()
 
-# get/check shards.
+
+def do_shard(shard):
+    mrd_map_one_shard.map(
+        args.map_module, args.map_func, args.input_files, args.work_dir, shard,
+        args.n_shards)
+
+
 shards = map(int, args.shards.split(','))
-for shard in shards:
-    assert 0 <= shard < args.n_shards
-assert args.work_dir
-
-
-# find/check the map function.
-map_module = imp.load_source('map_module', args.map_module)
-map_func = getattr(map_module, args.map_func)
-
-
-# execute each shard on this machine.
-for shard in shards:
-    cmd = """
-python mrd_map_one_shard.py \
-    --shard %d \
-    --n_shards %d \
-    --input_files %s \
-    --map_module %s \
-    --map_func %s \
-    --work_dir %s &""" % (
-        shard, args.n_shards, ' '.join(args.input_files), args.map_module,
-        args.map_func, args.work_dir)
-    os.system(cmd)
+pool = Pool(processes=len(shards))
+pool.map(do_shard, shards)

@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-from argparse import ArgumentParser
 import collections
 import imp
 import json
@@ -8,24 +7,6 @@ import math
 import os
 
 import mrd_util
-
-ap = ArgumentParser()
-ap.add_argument('--shard', type=int,
-                help='which shard we are')
-ap.add_argument('--n_shards', type=int,
-                help='out of how many shards')
-ap.add_argument('--input_files', type=str, nargs='+',
-                help='input files')
-ap.add_argument('--map_module', type=str,
-                help='path to module containing mapper')
-ap.add_argument('--map_func', type=str,
-                help='mapper function name')
-ap.add_argument('--work_dir', type=str,
-                help='directory containing map output files')
-args = ap.parse_args()
-
-assert 0 <= args.shard < args.n_shards
-assert args.work_dir
 
 
 def each_input_line(input_files, shard, n_shards):
@@ -57,42 +38,40 @@ def each_input_line(input_files, shard, n_shards):
                     yield s
 
 
-# find the map function.
-map_module = imp.load_source('map_module', args.map_module)
-map_func = getattr(map_module, args.map_func)
+def map(map_module, map_func, input_files, work_dir, shard, n_shards):
+    assert 0 <= shard < n_shards
 
+    # find the map function.
+    map_module = imp.load_source('map_module', map_module)
+    map_func = getattr(map_module, map_func)
 
-# the counters.
-counters = collections.defaultdict(lambda: collections.defaultdict(int))
-def increment_counter(key, sub_key, incr):
-    counters[key][sub_key] += incr
+    # the counters.
+    counters = collections.defaultdict(lambda: collections.defaultdict(int))
 
+    def increment_counter(key, sub_key, incr):
+        counters[key][sub_key] += incr
 
-# process each line of input.
-out_fn = '%s/map.out.%d' % (args.work_dir, args.shard)
-out_f = open(out_fn, 'w')
-count = 0
-for line in each_input_line(args.input_files, args.shard, args.n_shards):
-    for key, value in map_func(line, increment_counter):
-        j = {'kv': [key, value]}
-        out_f.write(json.dumps(j) + '\n')
-        count += 1
-out_f.close()
+    # process each line of input.
+    out_fn = '%s/map.out.%d' % (work_dir, shard)
+    out_f = open(out_fn, 'w')
+    count = 0
+    for line in each_input_line(input_files, shard, n_shards):
+        for key, value in map_func(line, increment_counter):
+            j = {'kv': [key, value]}
+            out_f.write(json.dumps(j) + '\n')
+            count += 1
+    out_f.close()
 
+    # write out the counters to file.
+    f = '%s/map.counters.%d' % (work_dir, shard)
+    open(f, 'w').write(mrd_util.json_str_from_counters(counters))
 
-# write out the counters to file.
-f = '%s/map.counters.%d' % (args.work_dir, args.shard)
-open(f, 'w').write(mrd_util.json_str_from_counters(counters))
+    # write how many entries were written for reducer balancing purposes.
+    f = '%s/map.out_count.%d' % (work_dir, shard)
+    open(f, 'w').write(str(count))
 
+    # sort the results for merge step.
+    os.system('sort %s -o %s' % (out_fn, out_fn))
 
-# write how many entries were written for reducer balancing purposes.
-f = '%s/map.out_count.%d' % (args.work_dir, args.shard)
-open(f, 'w').write(str(count))
-
-
-# sort the results for merge step.
-os.system('sort %s -o %s' % (out_fn, out_fn))
-
-
-# finally note that we are done.
-open('%s/map.done.%d' % (args.work_dir, args.shard), 'w').write('')
+    # finally note that we are done.
+    open('%s/map.done.%d' % (work_dir, shard), 'w').write('')
