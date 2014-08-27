@@ -1,9 +1,7 @@
-#!/usr/bin/env python2
-
 from argparse import ArgumentParser
 from multiprocessing import Pool
 
-import mrd_reduce_one_shard
+from mrdomino import reduce_one_shard
 
 ap = ArgumentParser()
 ap.add_argument('--shards', type=str,
@@ -22,7 +20,7 @@ args = ap.parse_args()
 
 
 def do_shard(shard):
-    mrd_reduce_one_shard.reduce(
+    reduce_one_shard.reduce(
         args.reduce_module, args.reduce_func, args.work_dir, args.output_dir,
         shard)
 

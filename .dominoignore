@@ -11,7 +11,7 @@ dominodump-*
 .idea/
 
 # Python
-*.pyc
+*.py[cod]
 
 # R
 .Rhistory
@@ -30,3 +30,6 @@ octave-core
 .DS_Store
 
 .ropeproject/
+
+# Vim
+*.sw[op]

@@ -1,26 +1,24 @@
-#!/bin/sh
-
-import os
-
-import mrd_util
+import sys
+import subprocess
+from mrdomino import util
 
 
 def mapreduce(steps, settings):
-    tmp_dirs = map(lambda _: mrd_util.mk_tmpdir(),
+    tmp_dirs = map(lambda _: util.mk_tmpdir(),
                    range(len(steps) - 1))
 
     input_file_lists = [settings['input_files']]
     output_dirs = []
     for step, out_dir in zip(steps, tmp_dirs):
         n_reducers = step['n_reducers']
-        ff = map(lambda n: '%s/reduce.out.%d' % (out_dir, n), range(n_reducers))
+        each_reducer = range(n_reducers)
+        ff = map(lambda n: '%s/reduce.out.%d' % (out_dir, n), each_reducer)
         input_file_lists.append(ff)
         output_dirs.append(out_dir)
     output_dirs.append(settings['output_dir'])
 
     for i, step in enumerate(steps):
-        cmd = """
-time python mrd_step.py \
+        cmd = """python -m mrdomino.step \
     --input_files %s \
     --output_dir %s \
     --map_module %s \
@@ -45,5 +43,16 @@ time python mrd_step.py \
             settings['n_concurrent_machines'],
             settings['n_shards_per_machine'],
         )
-        os.system(cmd)
+        try:
+            with util.Timer() as t:
+                retcode = subprocess.call(cmd, shell=True)
+            if retcode < 0:
+                print >>sys.stderr, \
+                    "Step {} terminated by signal {}".format(i, -retcode)
+            else:
+                print >>sys.stderr, \
+                    "Step {} finished with status code {}".format(i, retcode)
+        except OSError as e:
+            print >>sys.stderr, "Step {} failed: {}".format(i, e)
+        print >>sys.stderr, "Timer stats: {}".format(str(t))
     print 'All done.'

@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 from argparse import ArgumentParser
 import glob
 import heapq

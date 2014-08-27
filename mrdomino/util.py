@@ -1,10 +1,26 @@
-#!/usr/bin/env python2
-
 import collections
 import json
 import os
+import time
 import random
 import string
+
+
+class Timer(object):
+    def __enter__(self):
+        self.clock_start = time.clock()
+        self.wall_start = time.time()
+        return self
+
+    def __exit__(self, *args):
+        clock_end = time.clock()
+        wall_end = time.time()
+        self.clock_interval = clock_end - self.clock_start
+        self.wall_interval = wall_end - self.wall_start
+
+    def __str__(self):
+        return "clock: %0.03f sec, wall: %0.03f sec." \
+            % (self.clock_interval, self.wall_interval)
 
 
 def json_str_from_counters(counters):

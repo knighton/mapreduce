@@ -1,7 +1,29 @@
-*.pyc
-*.sw[op]
+*.py[cod]
+*.d
+*.o
+dist/
+build/
+.backup/
+*.stackdump
+*~
+*.egg-info
+setuptools-*.egg
 .ropeproject/
+
+*.egg
+
+*.sw[op]
+
+# Virtualenv
+bin
+env
 
 # Domino
 .domino/
 results/
+domino.log
+
+# Misc
+data/
+out/
+tmp/

@@ -1,11 +1,9 @@
-#!/usr/bin/env python2
-
 from argparse import ArgumentParser
 import imp
 import os
 import time
 
-import mrd_util
+from mrdomino import util
 
 ap = ArgumentParser()
 ap.add_argument('--input_files', type=str, nargs='+',
@@ -52,10 +50,10 @@ func = getattr(module, args.reduce_func)
 
 def wrap_cmd(cmd, use_domino):
     if use_domino:
-        pre = 'domino run '
+        pre = 'domino run python -m'
         post = ''
     else:
-        pre = 'python '
+        pre = 'python -m'
         post = ' &'
     return '%s%s%s' % (pre, cmd, post)
 
@@ -169,14 +167,14 @@ def main():
     print '%d input files.' % len(args.input_files)
 
     # create temporary working directory.
-    work_dir = mrd_util.mk_tmpdir()
+    work_dir = util.mk_tmpdir()
     if os.path.exists(work_dir):
         os.system('rm -rf %s' % work_dir)
     os.makedirs(work_dir)
     print 'Working directory: %s' % work_dir
 
     print 'Starting %d mappers.' % args.n_map_shards
-    cmd = """mrd_map_one_machine.py \
+    cmd = """mrdomino.map_one_machine \
         --shards %%s \
         --n_shards %d \
         --input_files %s \
@@ -191,19 +189,19 @@ def main():
         args.n_concurrent_machines, args.poll_done_interval_sec,
         done_file_pattern, args.use_domino)
 
-    mrd_util.show_combined_counters(
+    util.show_combined_counters(
         work_dir, args.n_map_shards, args.n_reduce_shards)
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
-    cmd = """python mrd_shuffle.py \
+    cmd = """python -m mrdomino.shuffle \
         --work_dir %s \
         --n_reduce_shards %d
     """ % (work_dir, args.n_reduce_shards)
     os.system(cmd)
 
     print 'Starting %d reducers.' % args.n_reduce_shards
-    cmd = """mrd_reduce_one_machine.py \
+    cmd = """mrdomino.reduce_one_machine \
         --shards %%s \
         --n_shards %d \
         --reduce_module %s \
@@ -218,7 +216,7 @@ def main():
         args.n_concurrent_machines, args.poll_done_interval_sec,
         done_file_pattern, args.use_domino)
 
-    mrd_util.show_combined_counters(
+    util.show_combined_counters(
         work_dir, args.n_map_shards, args.n_reduce_shards)
 
     # done.
