@@ -1,0 +1,7 @@
+*.pyc
+*.sw[op]
+.ropeproject/
+
+# Domino
+.domino/
+results/

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 
 import glob
 import json
@@ -43,10 +43,10 @@ def main():
     ]
 
     settings = {
-        'use_domino': False,
+        'use_domino': True,
         'n_concurrent_machines': 2,
         'n_shards_per_machine': 3,
-        'input_files': glob.glob('data/short.*'),
+        'input_files': glob.glob('data/20*'),
         'output_dir': 'out',
     }
 
