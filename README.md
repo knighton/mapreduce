@@ -1,5 +1,5 @@
-mapreduce
-=========
+mrdomino
+========
 
 Implementation of mapreduce to run on http://dominoup.com.
 
