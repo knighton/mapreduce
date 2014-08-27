@@ -40,7 +40,7 @@ def main():
     ]
 
     settings = {
-        'use_domino': True,
+        'use_domino': False,
         'n_concurrent_machines': 2,
         'n_shards_per_machine': 3,
         'input_files': glob.glob('./data/2014-01-18.detail.10000'),

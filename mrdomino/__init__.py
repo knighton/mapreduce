@@ -1,6 +1,9 @@
 import sys
 import subprocess
 from mrdomino import util
+from pkg_resources import resource_filename
+
+EXEC_SCRIPT = resource_filename(__name__, "exec.sh")
 
 
 def mapreduce(steps, settings):
@@ -18,7 +21,7 @@ def mapreduce(steps, settings):
     output_dirs.append(settings['output_dir'])
 
     for i, step in enumerate(steps):
-        cmd = """python -m mrdomino.step \
+        cmd = """%s mrdomino.step \
     --input_files %s \
     --output_dir %s \
     --map_module %s \
@@ -31,6 +34,7 @@ def mapreduce(steps, settings):
     --n_concurrent_machines %d \
     --n_shards_per_machine %d
 """ % (
+            EXEC_SCRIPT,
             ' '.join(input_file_lists[i]),
             output_dirs[i],
             step['mapper'].func_globals['__file__'],

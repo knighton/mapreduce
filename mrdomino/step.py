@@ -3,7 +3,7 @@ import imp
 import os
 import time
 
-from mrdomino import util
+from mrdomino import util, EXEC_SCRIPT
 
 ap = ArgumentParser()
 ap.add_argument('--input_files', type=str, nargs='+',
@@ -50,10 +50,10 @@ func = getattr(module, args.reduce_func)
 
 def wrap_cmd(cmd, use_domino):
     if use_domino:
-        pre = 'domino run python -m'
+        pre = 'domino run %s ' % EXEC_SCRIPT
         post = ''
     else:
-        pre = 'python -m'
+        pre = '%s ' % EXEC_SCRIPT
         post = ' &'
     return '%s%s%s' % (pre, cmd, post)
 
@@ -194,10 +194,10 @@ def main():
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
-    cmd = """python -m mrdomino.shuffle \
+    cmd = """%s mrdomino.shuffle \
         --work_dir %s \
         --n_reduce_shards %d
-    """ % (work_dir, args.n_reduce_shards)
+    """ % (EXEC_SCRIPT, work_dir, args.n_reduce_shards)
     os.system(cmd)
 
     print 'Starting %d reducers.' % args.n_reduce_shards
