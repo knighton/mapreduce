@@ -1,9 +1,6 @@
-#!/usr/bin/python
-
 import glob
 import json
-
-import mrdomino
+from mrdomino import mapreduce
 
 
 def map1(line, increment_counter):
@@ -43,14 +40,14 @@ def main():
     ]
 
     settings = {
-        'use_domino': False,
+        'use_domino': True,
         'n_concurrent_machines': 2,
         'n_shards_per_machine': 3,
-        'input_files': glob.glob('data/short.*'),
+        'input_files': glob.glob('./data/2014-01-18.detail.10000'),
         'output_dir': 'out',
     }
 
-    mrdomino.mapreduce(steps, settings)
+    mapreduce(steps, settings)
 
 
 if __name__ == '__main__':

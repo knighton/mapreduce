@@ -1,11 +1,9 @@
-#!/usr/bin/python
-
 import collections
 import imp
 import json
 import os
 
-import mrd_util
+from mrdomino.util import json_str_from_counters
 
 
 def reduce(reduce_module, reduce_func, work_dir, output_dir, shard):
@@ -43,7 +41,7 @@ def reduce(reduce_module, reduce_func, work_dir, output_dir, shard):
 
     # write out the counters to file.
     f = '%s/reduce.counters.%d' % (work_dir, shard)
-    open(f, 'w').write(mrd_util.json_str_from_counters(counters))
+    open(f, 'w').write(json_str_from_counters(counters))
 
     # finally note that we are done.
     open('%s/reduce.done.%d' % (work_dir, shard), 'w').write('')

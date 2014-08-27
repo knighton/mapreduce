@@ -1,0 +1,6 @@
+include mrdomino/*.py
+include mrdomino/exec.sh
+include LICENSE
+include tests/*.py
+include setup.py
+include README.md

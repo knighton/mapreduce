@@ -1,12 +1,10 @@
-#!/usr/bin/python
-
 import collections
 import imp
 import json
 import math
 import os
 
-import mrd_util
+from mrdomino.util import json_str_from_counters
 
 
 def each_input_line(input_files, shard, n_shards):
@@ -64,7 +62,7 @@ def map(map_module, map_func, input_files, work_dir, shard, n_shards):
 
     # write out the counters to file.
     f = '%s/map.counters.%d' % (work_dir, shard)
-    open(f, 'w').write(mrd_util.json_str_from_counters(counters))
+    open(f, 'w').write(json_str_from_counters(counters))
 
     # write how many entries were written for reducer balancing purposes.
     f = '%s/map.out_count.%d' % (work_dir, shard)
