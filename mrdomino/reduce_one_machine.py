@@ -4,6 +4,10 @@ from multiprocessing import Pool
 from mrdomino import reduce_one_shard
 
 ap = ArgumentParser()
+ap.add_argument('--step_idx', type=int, required=True,
+                help='Index of this step (zero-base)')
+ap.add_argument('--total_steps', type=int, required=True,
+                help='total number of steps')
 ap.add_argument('--shards', type=str,
                 help='which shards we are')
 ap.add_argument('--n_shards', type=int,
@@ -20,9 +24,7 @@ args = ap.parse_args()
 
 
 def do_shard(shard):
-    reduce_one_shard.reduce(
-        args.reduce_module, args.reduce_func, args.work_dir, args.output_dir,
-        shard)
+    reduce_one_shard.reduce(shard, args)
 
 
 shards = map(int, args.shards.split(','))

@@ -8,8 +8,10 @@ EXEC_SCRIPT = resource_filename(__name__, "exec.sh")
 
 
 def mapreduce(steps, settings):
+
+    step_count = len(steps)
     tmp_dirs = map(lambda _: util.mk_tmpdir(),
-                   range(len(steps) - 1))
+                   range(step_count - 1))
 
     input_file_lists = [settings['input_files']]
     output_dirs = []
@@ -23,6 +25,8 @@ def mapreduce(steps, settings):
 
     for i, step in enumerate(steps):
         cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.step', {
+            'step_idx': i,
+            'total_steps': step_count,
             'input_files': ' '.join(input_file_lists[i]),
             'output_dir': output_dirs[i],
             'map_module': step['mapper'].func_globals['__file__'],

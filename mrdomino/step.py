@@ -21,6 +21,11 @@ ap.add_argument('--n_map_shards', type=int,
 ap.add_argument('--n_reduce_shards', type=int, default=10,
                 help='number of reduce shards')
 
+ap.add_argument('--step_idx', type=int, required=True,
+                help='Index of this step (zero-base)')
+ap.add_argument('--total_steps', type=int, required=True,
+                help='total number of steps')
+
 ap.add_argument('--use_domino', type=int, default=1,
                 help='which platform to run on (local or domino)')
 ap.add_argument('--n_concurrent_machines', type=int, default=2,
@@ -175,6 +180,8 @@ def main():
 
     print 'Starting %d mappers.' % args.n_map_shards
     cmd = util.create_cmd('mrdomino.map_one_machine', {
+        'step_idx': args.step_idx,
+        'total_steps': args.total_steps,
         'shards': '%s',
         'n_shards': args.n_map_shards,
         'input_files': ' '.join(args.input_files),
@@ -201,6 +208,8 @@ def main():
 
     print 'Starting %d reducers.' % args.n_reduce_shards
     cmd = util.create_cmd('mrdomino.reduce_one_machine', {
+        'step_idx': args.step_idx,
+        'total_steps': args.total_steps,
         'shards': '%s',
         'n_shards': args.n_reduce_shards,
         'reduce_module': args.reduce_module,

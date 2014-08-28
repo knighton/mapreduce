@@ -3,39 +3,46 @@ import json
 from mrdomino import mapreduce
 
 
-def map1(line, increment_counter):
+def map1(_, line, increment_counter):
     j = json.loads(line)
-    yield j[u'object'][u'user_id'], j
+    yield j[u'object'][u'user_id'], 1
 
 
-def reduce1(k, vv, increment_counter):
-    yield '%s -> %d posts' % (k, len(vv))
+def reduce1(key, vals, increment_counter):
+
+    # username -> count of posts
+    yield key, sum(vals)
 
 
-def map2(line, increment_counter):
-    ss = line.split()
-    for s in ss:
-        increment_counter('map2', 'len_%03d' % len(s), 10)
-        yield s, 1
+def map2(key, val, increment_counter):
+    # find domains
+    if key is None:
+        increment_counter('map2', 'key_is_None', 1)
+    else:
+        t = key.split("@")
+        if len(t) == 2:
+            yield t[1], val
+        else:
+            increment_counter('map2', 'no_domain', 1)
 
 
-def reduce2(k, vv, increment_counter):
-    yield '%s -> %d' % (k, sum(map(int, vv)))
+def reduce2(key, vals, increment_counter):
+    yield key, sum(vals)
 
 
 def main():
     steps = [
         {
             'mapper': map1,
-            'n_mappers': 4,
+            'n_mappers': 2,
             'reducer': reduce1,
-            'n_reducers': 5,
+            'n_reducers': 3,
         },
         {
             'mapper': map2,
-            'n_mappers': 10,
+            'n_mappers': 5,
             'reducer': reduce2,
-            'n_reducers': 7,
+            'n_reducers': 4,
         }
     ]
 
