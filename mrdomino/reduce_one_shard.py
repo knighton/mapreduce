@@ -18,12 +18,6 @@ def reduce(shard, args):
     def increment_counter(key, sub_key, incr):
         counters[key][sub_key] += incr
 
-    if not os.path.exists(args.output_dir):
-        try:
-            os.makedirs(args.output_dir)
-        except:
-            pass
-
     # process each (key, value) pair.
     in_f = os.path.join(args.work_dir, 'reduce.in.%d' % shard)
     out_f = os.path.join(args.output_dir, 'reduce.out.%d' % shard)

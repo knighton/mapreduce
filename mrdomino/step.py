@@ -2,14 +2,15 @@ from argparse import ArgumentParser
 import imp
 import os
 import time
-
 from mrdomino import util, EXEC_SCRIPT
 
 ap = ArgumentParser()
 ap.add_argument('--input_files', type=str, nargs='+',
                 help='list of input files to mappers')
-ap.add_argument('--output_dir', type=str, default='.',
+ap.add_argument('--output_dir', type=str, default='out',
                 help='directory to write output files to')
+ap.add_argument('--work_dir', type=str, required=True,
+                help='temporary working directory')
 
 ap.add_argument('--map_module', type=str)
 ap.add_argument('--map_func', type=str)
@@ -171,11 +172,7 @@ def schedule_machines(
 def main():
     print '%d input files.' % len(args.input_files)
 
-    # create temporary working directory.
-    work_dir = util.mk_tmpdir()
-    if os.path.exists(work_dir):
-        os.system('rm -rf %s' % work_dir)
-    os.makedirs(work_dir)
+    work_dir = args.work_dir
     print 'Working directory: %s' % work_dir
 
     print 'Starting %d mappers.' % args.n_map_shards

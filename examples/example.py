@@ -52,6 +52,7 @@ def main():
         'n_shards_per_machine': 3,
         'input_files': glob.glob('./data/2014-01-18.detail.10000'),
         'output_dir': 'out',
+        'tmp_dir': 'tmp'
     }
 
     mapreduce(steps, settings)

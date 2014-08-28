@@ -102,7 +102,3 @@ def random_string(length):
     for i in range(length):
         cc.append(random.choice(choices))
     return ''.join(cc)
-
-
-def mk_tmpdir():
-    return 'tmp/%s' % random_string(16)

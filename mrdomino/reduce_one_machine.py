@@ -16,9 +16,9 @@ ap.add_argument('--reduce_module', type=str,
                 help='path to module containing reducer')
 ap.add_argument('--reduce_func', type=str,
                 help='reduce function name')
-ap.add_argument('--work_dir', type=str,
+ap.add_argument('--work_dir', type=str, required=True,
                 help='directory containing reduce input files')
-ap.add_argument('--output_dir', type=str, default='.',
+ap.add_argument('--output_dir', type=str, default='out',
                 help='directory containing reduce output files')
 args = ap.parse_args()
 

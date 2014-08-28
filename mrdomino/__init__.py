@@ -3,6 +3,7 @@ import os
 import subprocess
 from mrdomino import util
 from pkg_resources import resource_filename
+from tempfile import mkdtemp
 
 EXEC_SCRIPT = resource_filename(__name__, "exec.sh")
 
@@ -10,8 +11,12 @@ EXEC_SCRIPT = resource_filename(__name__, "exec.sh")
 def mapreduce(steps, settings):
 
     step_count = len(steps)
-    tmp_dirs = map(lambda _: util.mk_tmpdir(),
-                   range(step_count - 1))
+
+    # if temporary directory root does not exist, create one
+    tmp_root = settings['tmp_dir']
+    if not os.path.exists(tmp_root):
+        os.makedirs(tmp_root)
+    tmp_dirs = [mkdtemp(dir=tmp_root) for _ in range(step_count - 1)]
 
     input_file_lists = [settings['input_files']]
     output_dirs = []
@@ -21,7 +26,12 @@ def mapreduce(steps, settings):
         ff = [reduce_format % n for n in range(n_reducers)]
         input_file_lists.append(ff)
         output_dirs.append(out_dir)
-    output_dirs.append(settings['output_dir'])
+
+    # if output directory root does not exist, create one
+    output_dir = settings['output_dir']
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    output_dirs.append(output_dir)
 
     for i, step in enumerate(steps):
         cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.step', {
@@ -29,6 +39,7 @@ def mapreduce(steps, settings):
             'total_steps': step_count,
             'input_files': ' '.join(input_file_lists[i]),
             'output_dir': output_dirs[i],
+            'work_dir': mkdtemp(dir=tmp_root),
             'map_module': step['mapper'].func_globals['__file__'],
             'map_func': step['mapper'].func_name,
             'n_map_shards': step['n_mappers'],
