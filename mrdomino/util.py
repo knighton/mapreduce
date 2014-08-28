@@ -6,6 +6,14 @@ import random
 import string
 
 
+def create_cmd(prefix, opts=None):
+    if opts is None:
+        return prefix
+
+    suffix = ' '.join('--{} {}'.format(k, v) for k, v in opts.iteritems())
+    return prefix + ' ' + suffix
+
+
 class Timer(object):
     def __enter__(self):
         self.clock_start = time.clock()

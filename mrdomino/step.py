@@ -174,15 +174,14 @@ def main():
     print 'Working directory: %s' % work_dir
 
     print 'Starting %d mappers.' % args.n_map_shards
-    cmd = """mrdomino.map_one_machine \
-        --shards %%s \
-        --n_shards %d \
-        --input_files %s \
-        --map_module %s \
-        --map_func %s \
-        --work_dir %s""" % (
-        args.n_map_shards, ' '.join(args.input_files), args.map_module,
-        args.map_func, work_dir)
+    cmd = util.create_cmd('mrdomino.map_one_machine', {
+        'shards': '%s',
+        'n_shards': args.n_map_shards,
+        'input_files': ' '.join(args.input_files),
+        'map_module': args.map_module,
+        'map_func': args.map_func,
+        'work_dir': work_dir
+    })
     done_file_pattern = '%s/map.done.%%d' % work_dir
     schedule_machines(
         cmd, args.n_map_shards, args.n_shards_per_machine,
@@ -194,22 +193,21 @@ def main():
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
-    cmd = """%s mrdomino.shuffle \
-        --work_dir %s \
-        --n_reduce_shards %d
-    """ % (EXEC_SCRIPT, work_dir, args.n_reduce_shards)
+    cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.shuffle', {
+        'work_dir': work_dir,
+        'n_reduce_shards': args.n_reduce_shards
+    })
     os.system(cmd)
 
     print 'Starting %d reducers.' % args.n_reduce_shards
-    cmd = """mrdomino.reduce_one_machine \
-        --shards %%s \
-        --n_shards %d \
-        --reduce_module %s \
-        --reduce_func %s \
-        --work_dir %s \
-        --output_dir %s""" % (
-        args.n_reduce_shards, args.reduce_module, args.reduce_func, work_dir,
-        args.output_dir)
+    cmd = util.create_cmd('mrdomino.reduce_one_machine', {
+        'shards': '%s',
+        'n_shards': args.n_reduce_shards,
+        'reduce_module': args.reduce_module,
+        'reduce_func': args.reduce_func,
+        'work_dir': work_dir,
+        'output_dir': args.output_dir
+    })
     done_file_pattern = '%s/reduce.done.%%d' % work_dir
     schedule_machines(
         cmd, args.n_reduce_shards, args.n_shards_per_machine,
