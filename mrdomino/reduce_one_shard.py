@@ -1,7 +1,6 @@
 import imp
 import json
 import os
-import itertools
 from contextlib import nested as nested_context
 
 from mrdomino.util import json_str_from_counters, NestedCounter
@@ -26,12 +25,21 @@ def reduce(reduce_module, reduce_func, work_dir, output_dir, shard):
             pass
 
     # process each (key, value) pair.
-    cur_key = None
-    values = []
     in_f = os.path.join(work_dir, 'reduce.in.%d' % shard)
     out_f = os.path.join(output_dir, 'reduce.out.%d' % shard)
     with nested_context(open(in_f, 'r'), open(out_f, 'w')) as (in_fh, out_fh):
-        for j in itertools.imap(json.loads, in_fh):
+        cur_key = None
+        values = []
+        while True:
+            try:
+                line = in_fh.next()
+            except StopIteration:
+                # dump any remaining content
+                if cur_key is not None:
+                    for v in reduce_func(cur_key, values, increment_counter):
+                        out_fh.write(v + '\n')
+                break
+            j = json.loads(line)
             key, value = j[u'kv']
             if key == cur_key:
                 values.append(value)
