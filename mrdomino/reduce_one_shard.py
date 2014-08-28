@@ -9,8 +9,11 @@ from mrdomino.util import json_str_from_counters, NestedCounter
 
 def reduce(reduce_module, reduce_func, work_dir, output_dir, shard):
 
+    # find the reduce function.
     reduce_module = imp.load_source('reduce_module', reduce_module)
     reduce_func = getattr(reduce_module, reduce_func)
+
+    # the counters.
     counters = NestedCounter()
 
     def increment_counter(key, sub_key, incr):

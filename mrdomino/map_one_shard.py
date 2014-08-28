@@ -33,8 +33,11 @@ def each_input_line(input_files, shard, n_shards):
 def map(map_module, map_func, input_files, work_dir, shard, n_shards):
     assert 0 <= shard < n_shards
 
+    # find the map function.
     map_module = imp.load_source('map_module', map_module)
     map_func = getattr(map_module, map_func)
+
+    # the counters.
     counters = NestedCounter()
 
     def increment_counter(key, sub_key, incr):
