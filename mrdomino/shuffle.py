@@ -16,11 +16,11 @@ assert args.n_reduce_shards
 num_entries = 0
 count_ff = glob.glob('%s/map.out_count.*' % args.work_dir)
 for f in count_ff:
-    n = int(open(f).read())
-    num_entries += n
+    with open(f, 'r') as fh:
+        num_entries += int(fh.read())
 
 in_ff = sorted(glob.glob('%s/map.out.*' % args.work_dir))
-sources = map(open, in_ff)
+sources = [open(f, 'r') for f in in_ff]
 
 out_ff = map(lambda i: open('%s/reduce.in.%d' % (args.work_dir, i), 'w'),
              range(args.n_reduce_shards))
