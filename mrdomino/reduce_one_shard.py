@@ -25,8 +25,8 @@ def reduce(reduce_module, reduce_func, work_dir, output_dir, shard):
     # process each (key, value) pair.
     cur_key = None
     values = []
-    in_f = '%s/reduce.in.%d' % (work_dir, shard)
-    out_f = '%s/reduce.out.%d' % (output_dir, shard)
+    in_f = os.path.join(work_dir, 'reduce.in.%d' % shard)
+    out_f = os.path.join(output_dir, 'reduce.out.%d' % shard)
     with nested_context(open(in_f, 'r'), open(out_f, 'w')) as (in_fh, out_fh):
         for j in itertools.imap(json.loads, in_fh):
             key, value = j[u'kv']
@@ -39,11 +39,11 @@ def reduce(reduce_module, reduce_func, work_dir, output_dir, shard):
                 values = [value]
 
     # write out the counters to file.
-    f = '%s/reduce.counters.%d' % (work_dir, shard)
+    f = os.path.join(work_dir, 'reduce.counters.%d' % shard)
     with open(f, 'w') as fh:
         fh.write(json_str_from_counters(counters))
 
     # finally note that we are done.
-    f = '%s/reduce.done.%d' % (work_dir, shard)
+    f = os.path.join(work_dir, 'reduce.done.%d' % shard)
     with open(f, 'w') as fh:
         fh.write('')

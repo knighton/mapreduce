@@ -1,4 +1,5 @@
 import sys
+import os
 import subprocess
 from mrdomino import util
 from pkg_resources import resource_filename
@@ -14,8 +15,8 @@ def mapreduce(steps, settings):
     output_dirs = []
     for step, out_dir in zip(steps, tmp_dirs):
         n_reducers = step['n_reducers']
-        each_reducer = range(n_reducers)
-        ff = map(lambda n: '%s/reduce.out.%d' % (out_dir, n), each_reducer)
+        reduce_format = os.path.join(out_dir, 'reduce.out.%d')
+        ff = [reduce_format % n for n in range(n_reducers)]
         input_file_lists.append(ff)
         output_dirs.append(out_dir)
     output_dirs.append(settings['output_dir'])

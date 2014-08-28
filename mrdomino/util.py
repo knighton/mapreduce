@@ -87,10 +87,10 @@ def show_combined_counters_from_files(ff):
 
 def show_combined_counters(work_dir, n_map_shards, n_reduce_shards):
     ff = map(lambda (work_dir, shard):
-             '%s/map.counters.%d' % (work_dir, shard),
+             os.path.join(work_dir, 'map.counters.%d' % shard),
              zip([work_dir] * n_map_shards, range(n_map_shards)))
     ff += map(lambda (work_dir, shard):
-              '%s/reduce.counters.%d' % (work_dir, shard),
+              os.path.join(work_dir, 'reduce.counters.%d' % shard),
               zip([work_dir] * n_reduce_shards, range(n_reduce_shards)))
     ff = filter(os.path.exists, ff)
     show_combined_counters_from_files(ff)

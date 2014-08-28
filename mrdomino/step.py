@@ -182,7 +182,7 @@ def main():
         'map_func': args.map_func,
         'work_dir': work_dir
     })
-    done_file_pattern = '%s/map.done.%%d' % work_dir
+    done_file_pattern = os.path.join(work_dir, 'map.done.%d')
     schedule_machines(
         cmd, args.n_map_shards, args.n_shards_per_machine,
         args.n_concurrent_machines, args.poll_done_interval_sec,
@@ -208,7 +208,7 @@ def main():
         'work_dir': work_dir,
         'output_dir': args.output_dir
     })
-    done_file_pattern = '%s/reduce.done.%%d' % work_dir
+    done_file_pattern = os.path.join(work_dir, 'reduce.done.%d')
     schedule_machines(
         cmd, args.n_reduce_shards, args.n_shards_per_machine,
         args.n_concurrent_machines, args.poll_done_interval_sec,

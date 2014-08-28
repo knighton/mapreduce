@@ -42,7 +42,7 @@ def map(map_module, map_func, input_files, work_dir, shard, n_shards):
 
     # process each line of input.
     count = 0
-    out_fn = '%s/map.out.%d' % (work_dir, shard)
+    out_fn = os.path.join(work_dir, 'map.out.%d' % shard)
     with open(out_fn, 'w') as out_f:
         for line in each_input_line(input_files, shard, n_shards):
             for kv in map_func(line, increment_counter):
@@ -50,12 +50,12 @@ def map(map_module, map_func, input_files, work_dir, shard, n_shards):
                 count += 1
 
     # write out the counters to file.
-    f = '%s/map.counters.%d' % (work_dir, shard)
+    f = os.path.join(work_dir, 'map.counters.%d' % shard)
     with open(f, 'w') as fh:
         fh.write(json_str_from_counters(counters))
 
     # write how many entries were written for reducer balancing purposes.
-    f = '%s/map.out_count.%d' % (work_dir, shard)
+    f = os.path.join(work_dir, 'map.out_count.%d' % shard)
     with open(f, 'w') as fh:
         fh.write(str(count))
 
@@ -63,6 +63,6 @@ def map(map_module, map_func, input_files, work_dir, shard, n_shards):
     os.system('sort %s -o %s' % (out_fn, out_fn))
 
     # finally note that we are done.
-    f = '%s/map.done.%d' % (work_dir, shard)
+    f = os.path.join(work_dir, 'map.done.%d' % shard)
     with open(f, 'w') as fh:
         fh.write('')

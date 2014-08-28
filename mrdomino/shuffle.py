@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import glob
+import os
 import heapq
 
 ap = ArgumentParser()
@@ -14,15 +15,16 @@ assert args.n_reduce_shards
 
 # count exactly how many input lines we have so we can balance work.
 num_entries = 0
-count_ff = glob.glob('%s/map.out_count.*' % args.work_dir)
+count_ff = glob.glob(os.path.join(args.work_dir, 'map.out_count.*'))
 for f in count_ff:
     with open(f, 'r') as fh:
         num_entries += int(fh.read())
 
-in_ff = sorted(glob.glob('%s/map.out.*' % args.work_dir))
+in_ff = sorted(glob.glob(os.path.join(args.work_dir, 'map.out.*')))
 sources = [open(f, 'r') for f in in_ff]
 
-out_ff = map(lambda i: open('%s/reduce.in.%d' % (args.work_dir, i), 'w'),
+out_format = os.path.join(args.work_dir, 'reduce.in.%d')
+out_ff = map(lambda i: open(out_format % i, 'w'),
              range(args.n_reduce_shards))
 
 count = 0
