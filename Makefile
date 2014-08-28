@@ -1,8 +1,11 @@
-.PHONY: clean virtualenv upgrade test package dev
+.PHONY: clean virtualenv upgrade test package dev run
 
 PYENV = . env/bin/activate;
 PYTHON = $(PYENV) python
 PYTHON_TIMED = $(PYENV) time python
+
+run: dev
+	$(PYTHON) examples/example.py
 
 package: env
 	$(PYTHON) setup.py bdist_egg

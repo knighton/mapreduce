@@ -1,52 +1,55 @@
 import sys
+import os
 import subprocess
 from mrdomino import util
 from pkg_resources import resource_filename
+from tempfile import mkdtemp
 
 EXEC_SCRIPT = resource_filename(__name__, "exec.sh")
 
 
 def mapreduce(steps, settings):
-    tmp_dirs = map(lambda _: util.mk_tmpdir(),
-                   range(len(steps) - 1))
+
+    step_count = len(steps)
+
+    # if temporary directory root does not exist, create one
+    tmp_root = settings['tmp_dir']
+    if not os.path.exists(tmp_root):
+        os.makedirs(tmp_root)
+    tmp_dirs = [mkdtemp(dir=tmp_root) for _ in range(step_count - 1)]
 
     input_file_lists = [settings['input_files']]
     output_dirs = []
     for step, out_dir in zip(steps, tmp_dirs):
         n_reducers = step['n_reducers']
-        each_reducer = range(n_reducers)
-        ff = map(lambda n: '%s/reduce.out.%d' % (out_dir, n), each_reducer)
+        reduce_format = os.path.join(out_dir, 'reduce.out.%d')
+        ff = [reduce_format % n for n in range(n_reducers)]
         input_file_lists.append(ff)
         output_dirs.append(out_dir)
-    output_dirs.append(settings['output_dir'])
+
+    # if output directory root does not exist, create one
+    output_dir = settings['output_dir']
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    output_dirs.append(output_dir)
 
     for i, step in enumerate(steps):
-        cmd = """%s mrdomino.step \
-    --input_files %s \
-    --output_dir %s \
-    --map_module %s \
-    --map_func %s \
-    --n_map_shards %d \
-    --reduce_module %s \
-    --reduce_func %s \
-    --n_reduce_shards %d \
-    --use_domino %d \
-    --n_concurrent_machines %d \
-    --n_shards_per_machine %d
-""" % (
-            EXEC_SCRIPT,
-            ' '.join(input_file_lists[i]),
-            output_dirs[i],
-            step['mapper'].func_globals['__file__'],
-            step['mapper'].func_name,
-            step['n_mappers'],
-            step['reducer'].func_globals['__file__'],
-            step['reducer'].func_name,
-            step['n_reducers'],
-            settings['use_domino'],
-            settings['n_concurrent_machines'],
-            settings['n_shards_per_machine'],
-        )
+        cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.step', {
+            'step_idx': i,
+            'total_steps': step_count,
+            'input_files': ' '.join(input_file_lists[i]),
+            'output_dir': output_dirs[i],
+            'work_dir': mkdtemp(dir=tmp_root),
+            'map_module': step['mapper'].func_globals['__file__'],
+            'map_func': step['mapper'].func_name,
+            'n_map_shards': step['n_mappers'],
+            'reduce_module': step['reducer'].func_globals['__file__'],
+            'reduce_func': step['reducer'].func_name,
+            'n_reduce_shards': step['n_reducers'],
+            'use_domino': int(settings['use_domino']),
+            'n_concurrent_machines': settings['n_concurrent_machines'],
+            'n_shards_per_machine': settings['n_shards_per_machine']
+        })
         try:
             with util.Timer() as t:
                 retcode = subprocess.call(cmd, shell=True)

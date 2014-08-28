@@ -2,14 +2,15 @@ from argparse import ArgumentParser
 import imp
 import os
 import time
-
 from mrdomino import util, EXEC_SCRIPT
 
 ap = ArgumentParser()
 ap.add_argument('--input_files', type=str, nargs='+',
                 help='list of input files to mappers')
-ap.add_argument('--output_dir', type=str, default='.',
+ap.add_argument('--output_dir', type=str, default='out',
                 help='directory to write output files to')
+ap.add_argument('--work_dir', type=str, required=True,
+                help='temporary working directory')
 
 ap.add_argument('--map_module', type=str)
 ap.add_argument('--map_func', type=str)
@@ -20,6 +21,11 @@ ap.add_argument('--n_map_shards', type=int,
                 help='number of map shards')
 ap.add_argument('--n_reduce_shards', type=int, default=10,
                 help='number of reduce shards')
+
+ap.add_argument('--step_idx', type=int, required=True,
+                help='Index of this step (zero-base)')
+ap.add_argument('--total_steps', type=int, required=True,
+                help='total number of steps')
 
 ap.add_argument('--use_domino', type=int, default=1,
                 help='which platform to run on (local or domino)')
@@ -166,24 +172,21 @@ def schedule_machines(
 def main():
     print '%d input files.' % len(args.input_files)
 
-    # create temporary working directory.
-    work_dir = util.mk_tmpdir()
-    if os.path.exists(work_dir):
-        os.system('rm -rf %s' % work_dir)
-    os.makedirs(work_dir)
+    work_dir = args.work_dir
     print 'Working directory: %s' % work_dir
 
     print 'Starting %d mappers.' % args.n_map_shards
-    cmd = """mrdomino.map_one_machine \
-        --shards %%s \
-        --n_shards %d \
-        --input_files %s \
-        --map_module %s \
-        --map_func %s \
-        --work_dir %s""" % (
-        args.n_map_shards, ' '.join(args.input_files), args.map_module,
-        args.map_func, work_dir)
-    done_file_pattern = '%s/map.done.%%d' % work_dir
+    cmd = util.create_cmd('mrdomino.map_one_machine', {
+        'step_idx': args.step_idx,
+        'total_steps': args.total_steps,
+        'shards': '%s',
+        'n_shards': args.n_map_shards,
+        'input_files': ' '.join(args.input_files),
+        'map_module': args.map_module,
+        'map_func': args.map_func,
+        'work_dir': work_dir
+    })
+    done_file_pattern = os.path.join(work_dir, 'map.done.%d')
     schedule_machines(
         cmd, args.n_map_shards, args.n_shards_per_machine,
         args.n_concurrent_machines, args.poll_done_interval_sec,
@@ -194,23 +197,24 @@ def main():
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
-    cmd = """%s mrdomino.shuffle \
-        --work_dir %s \
-        --n_reduce_shards %d
-    """ % (EXEC_SCRIPT, work_dir, args.n_reduce_shards)
+    cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.shuffle', {
+        'work_dir': work_dir,
+        'n_reduce_shards': args.n_reduce_shards
+    })
     os.system(cmd)
 
     print 'Starting %d reducers.' % args.n_reduce_shards
-    cmd = """mrdomino.reduce_one_machine \
-        --shards %%s \
-        --n_shards %d \
-        --reduce_module %s \
-        --reduce_func %s \
-        --work_dir %s \
-        --output_dir %s""" % (
-        args.n_reduce_shards, args.reduce_module, args.reduce_func, work_dir,
-        args.output_dir)
-    done_file_pattern = '%s/reduce.done.%%d' % work_dir
+    cmd = util.create_cmd('mrdomino.reduce_one_machine', {
+        'step_idx': args.step_idx,
+        'total_steps': args.total_steps,
+        'shards': '%s',
+        'n_shards': args.n_reduce_shards,
+        'reduce_module': args.reduce_module,
+        'reduce_func': args.reduce_func,
+        'work_dir': work_dir,
+        'output_dir': args.output_dir
+    })
+    done_file_pattern = os.path.join(work_dir, 'reduce.done.%d')
     schedule_machines(
         cmd, args.n_reduce_shards, args.n_shards_per_machine,
         args.n_concurrent_machines, args.poll_done_interval_sec,

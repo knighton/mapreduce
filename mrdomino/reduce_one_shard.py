@@ -1,47 +1,53 @@
-import collections
 import imp
 import json
 import os
+from contextlib import nested as nested_context
 
-from mrdomino.util import json_str_from_counters
+from mrdomino.util import json_str_from_counters, NestedCounter
 
 
-def reduce(reduce_module, reduce_func, work_dir, output_dir, shard):
+def reduce(shard, args):
+
     # find the reduce function.
-    reduce_module = imp.load_source('reduce_module', reduce_module)
-    reduce_func = getattr(reduce_module, reduce_func)
+    reduce_module = imp.load_source('reduce_module', args.reduce_module)
+    reduce_func = getattr(reduce_module, args.reduce_func)
 
     # the counters.
-    counters = collections.defaultdict(lambda: collections.defaultdict(int))
+    counters = NestedCounter()
 
     def increment_counter(key, sub_key, incr):
         counters[key][sub_key] += incr
 
-    if not os.path.exists(output_dir):
-        try:
-            os.makedirs(output_dir)
-        except:
-            pass
-
     # process each (key, value) pair.
-    out_f = open('%s/reduce.out.%d' % (output_dir, shard), 'w')
-    cur_key = None
-    values = []
-    for line in open('%s/reduce.in.%d' % (work_dir, shard)):
-        j = json.loads(line)
-        key, value = j[u'kv']
-        if key == cur_key:
-            values.append(value)
-        else:
-            for v in reduce_func(cur_key, values, increment_counter):
-                out_f.write(v + '\n')
-            cur_key = key
-            values = [value]
-    out_f.close()
+    in_f = os.path.join(args.work_dir, 'reduce.in.%d' % shard)
+    out_f = os.path.join(args.output_dir, 'reduce.out.%d' % shard)
+    with nested_context(open(in_f, 'r'), open(out_f, 'w')) as (in_fh, out_fh):
+        cur_key = None
+        values = []
+        while True:
+            try:
+                line = in_fh.next()
+            except StopIteration:
+                # dump any remaining content
+                if cur_key is not None:
+                    for kv in reduce_func(cur_key, values, increment_counter):
+                        out_fh.write(json.dumps(kv) + '\n')
+                break
+            key, value = json.loads(line)
+            if key == cur_key:
+                values.append(value)
+            else:
+                for kv in reduce_func(cur_key, values, increment_counter):
+                    out_fh.write(json.dumps(kv) + '\n')
+                cur_key = key
+                values = [value]
 
     # write out the counters to file.
-    f = '%s/reduce.counters.%d' % (work_dir, shard)
-    open(f, 'w').write(json_str_from_counters(counters))
+    f = os.path.join(args.work_dir, 'reduce.counters.%d' % shard)
+    with open(f, 'w') as fh:
+        fh.write(json_str_from_counters(counters))
 
     # finally note that we are done.
-    open('%s/reduce.done.%d' % (work_dir, shard), 'w').write('')
+    f = os.path.join(args.work_dir, 'reduce.done.%d' % shard)
+    with open(f, 'w') as fh:
+        fh.write('')

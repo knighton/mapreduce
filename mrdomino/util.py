@@ -4,6 +4,17 @@ import os
 import time
 import random
 import string
+import functools
+
+NestedCounter = functools.partial(collections.defaultdict, collections.Counter)
+
+
+def create_cmd(prefix, opts=None):
+    if opts is None:
+        return prefix
+
+    suffix = ' '.join('--{} {}'.format(k, v) for k, v in opts.iteritems())
+    return prefix + ' ' + suffix
 
 
 class Timer(object):
@@ -24,24 +35,21 @@ class Timer(object):
 
 
 def json_str_from_counters(counters):
-    jj = []
-    for key in sorted(counters):
-        for sub_key in sorted(counters[key]):
-            count = counters[key][sub_key]
-            j = {
+    arr = []
+    for key, sub_dict in sorted(counters.iteritems()):
+        for sub_key, count in sorted(sub_dict.iteritems()):
+            arr.append({
                 'key': key,
                 'sub_key': sub_key,
                 'count': count,
-            }
-            jj.append(j)
-    d = {
-        'counters': jj,
-    }
-    return json.dumps(d)
+            })
+    return json.dumps({
+        'counters': arr,
+    })
 
 
 def counters_from_json_str(s):
-    r = collections.defaultdict(lambda: collections.defaultdict(int))
+    r = NestedCounter()
     j = json.loads(s)
     for d in j['counters']:
         key = d['key']
@@ -52,13 +60,13 @@ def counters_from_json_str(s):
 
 
 def combine_counters_from_files(ff):
-    r = collections.defaultdict(lambda: collections.defaultdict(int))
+    r = NestedCounter()
     for f in ff:
-        s = open(f).read()
+        with open(f, 'r') as fh:
+            s = fh.read()
         d = counters_from_json_str(s)
-        for key in d:
-            for sub_key in d[key]:
-                r[key][sub_key] += d[key][sub_key]
+        for key, val in d.iteritems():
+            r[key].update(val)
     return r
 
 
@@ -78,13 +86,12 @@ def show_combined_counters_from_files(ff):
 
 
 def show_combined_counters(work_dir, n_map_shards, n_reduce_shards):
-    ff = map(lambda (work_dir, shard): '%s/map.counters.%d' % (work_dir, shard),
-             zip([work_dir] * n_map_shards,
-                 range(n_map_shards)))
+    ff = map(lambda (work_dir, shard):
+             os.path.join(work_dir, 'map.counters.%d' % shard),
+             zip([work_dir] * n_map_shards, range(n_map_shards)))
     ff += map(lambda (work_dir, shard):
-              '%s/reduce.counters.%d' % (work_dir, shard),
-              zip([work_dir] * n_reduce_shards,
-                  range(n_reduce_shards)))
+              os.path.join(work_dir, 'reduce.counters.%d' % shard),
+              zip([work_dir] * n_reduce_shards, range(n_reduce_shards)))
     ff = filter(os.path.exists, ff)
     show_combined_counters_from_files(ff)
 
@@ -95,7 +102,3 @@ def random_string(length):
     for i in range(length):
         cc.append(random.choice(choices))
     return ''.join(cc)
-
-
-def mk_tmpdir():
-    return 'tmp/%s' % random_string(16)

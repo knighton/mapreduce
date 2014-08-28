@@ -1,10 +1,10 @@
-import collections
 import imp
 import json
 import math
 import os
+import itertools
 
-from mrdomino.util import json_str_from_counters
+from mrdomino.util import json_str_from_counters, NestedCounter
 
 
 def each_input_line(input_files, shard, n_shards):
@@ -19,57 +19,55 @@ def each_input_line(input_files, shard, n_shards):
     z = int(math.ceil(z))
 
     # for each input file, yield the slices we want from it.
+    inf_gen = itertools.cycle(range(n_shards))
     for i in range(a, z):
         aa = n_shards * i
         zz = n_shards * (i + 1)
         assign = slice_assignments[aa:zz]
-        f = input_files[i]
-        f = open(f)
-        done = False
-        while not done:
-            for j in range(n_shards):
-                s = f.readline()
-                if not s:
-                    done = True
-                    break
-                if assign[j] == shard:
-                    yield s
+        with open(input_files[i], 'r') as fh:
+            for j, line in itertools.izip(inf_gen, fh):
+                if shard == assign[j]:
+                    yield line
 
 
-def map(map_module, map_func, input_files, work_dir, shard, n_shards):
-    assert 0 <= shard < n_shards
+def map(shard, args):
+    assert 0 <= shard < args.n_shards
 
     # find the map function.
-    map_module = imp.load_source('map_module', map_module)
-    map_func = getattr(map_module, map_func)
+    map_module = imp.load_source('map_module', args.map_module)
+    map_func = getattr(map_module, args.map_func)
 
     # the counters.
-    counters = collections.defaultdict(lambda: collections.defaultdict(int))
+    counters = NestedCounter()
 
     def increment_counter(key, sub_key, incr):
         counters[key][sub_key] += incr
 
     # process each line of input.
-    out_fn = '%s/map.out.%d' % (work_dir, shard)
-    out_f = open(out_fn, 'w')
     count = 0
-    for line in each_input_line(input_files, shard, n_shards):
-        for key, value in map_func(line, increment_counter):
-            j = {'kv': [key, value]}
-            out_f.write(json.dumps(j) + '\n')
-            count += 1
-    out_f.close()
+    out_fn = os.path.join(args.work_dir, 'map.out.%d' % shard)
+    unpack_tuple = args.step_idx > 0
+    with open(out_fn, 'w') as out_f:
+        for line in each_input_line(args.input_files, shard, args.n_shards):
+            k, v = json.loads(line) if unpack_tuple else (None, line)
+            for kv in map_func(k, v, increment_counter):
+                out_f.write(json.dumps(kv) + '\n')
+                count += 1
 
     # write out the counters to file.
-    f = '%s/map.counters.%d' % (work_dir, shard)
-    open(f, 'w').write(json_str_from_counters(counters))
+    f = os.path.join(args.work_dir, 'map.counters.%d' % shard)
+    with open(f, 'w') as fh:
+        fh.write(json_str_from_counters(counters))
 
     # write how many entries were written for reducer balancing purposes.
-    f = '%s/map.out_count.%d' % (work_dir, shard)
-    open(f, 'w').write(str(count))
+    f = os.path.join(args.work_dir, 'map.out_count.%d' % shard)
+    with open(f, 'w') as fh:
+        fh.write(str(count))
 
     # sort the results for merge step.
     os.system('sort %s -o %s' % (out_fn, out_fn))
 
     # finally note that we are done.
-    open('%s/map.done.%d' % (work_dir, shard), 'w').write('')
+    f = os.path.join(args.work_dir, 'map.done.%d' % shard)
+    with open(f, 'w') as fh:
+        fh.write('')
