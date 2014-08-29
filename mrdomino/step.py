@@ -4,7 +4,7 @@ import os
 import time
 from itertools import imap
 from mrdomino import EXEC_SCRIPT
-from mrdomino.util import MRCounter, create_cmd, read_files
+from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd
 
 ap = ArgumentParser()
 ap.add_argument('--input_files', type=str, nargs='+',
@@ -54,16 +54,6 @@ module = imp.load_source('module', args.map_module)
 func = getattr(module, args.map_func)
 module = imp.load_source('module', args.reduce_module)
 func = getattr(module, args.reduce_func)
-
-
-def wrap_cmd(cmd, use_domino):
-    if use_domino:
-        pre = 'domino run %s ' % EXEC_SCRIPT
-        post = ''
-    else:
-        pre = '%s ' % EXEC_SCRIPT
-        post = ' &'
-    return '%s%s%s' % (pre, cmd, post)
 
 
 class ShardState(object):
@@ -143,6 +133,16 @@ def show_shard_state(shard2state, n_shards_per_machine):
 def schedule_machines(
         cmd, n_shards, n_shards_per_machine, n_concurrent_machines,
         poll_done_interval_sec, done_file_pattern, use_domino):
+
+    def wrap_cmd(cmd, use_domino):
+        if use_domino:
+            pre = 'domino run %s ' % EXEC_SCRIPT
+            post = ''
+        else:
+            pre = '%s ' % EXEC_SCRIPT
+            post = ' &'
+        return '%s%s%s' % (pre, cmd, post)
+
     # shard -> state
     # 0: not started
     # 1: in progress
@@ -216,7 +216,7 @@ def main():
         'work_dir': work_dir,
         'n_reduce_shards': args.n_reduce_shards
     })
-    os.system(cmd)
+    wait_cmd(cmd, "Shuffling")
 
     print 'Starting %d reducers.' % args.n_reduce_shards
     cmd = create_cmd('mrdomino.reduce_one_machine', {

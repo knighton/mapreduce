@@ -1,6 +1,4 @@
-import sys
 import os
-import subprocess
 from mrdomino import util
 from pkg_resources import resource_filename
 from tempfile import mkdtemp
@@ -39,7 +37,7 @@ def mapreduce(steps, settings):
             'total_steps': step_count,
             'input_files': ' '.join(input_file_lists[i]),
             'output_dir': output_dirs[i],
-            'work_dir': mkdtemp(dir=tmp_root),
+            'work_dir': mkdtemp(dir=tmp_root, prefix="step%d." % i),
             'map_module': step['mapper'].func_globals['__file__'],
             'map_func': step['mapper'].func_name,
             'n_map_shards': step['n_mappers'],
@@ -50,16 +48,5 @@ def mapreduce(steps, settings):
             'n_concurrent_machines': settings['n_concurrent_machines'],
             'n_shards_per_machine': settings['n_shards_per_machine']
         })
-        try:
-            with util.Timer() as t:
-                retcode = subprocess.call(cmd, shell=True)
-            if retcode < 0:
-                print >>sys.stderr, \
-                    "Step {} terminated by signal {}".format(i, -retcode)
-            else:
-                print >>sys.stderr, \
-                    "Step {} finished with status code {}".format(i, retcode)
-        except OSError as e:
-            print >>sys.stderr, "Step {} failed: {}".format(i, e)
-        print >>sys.stderr, "Timer stats: {}".format(str(t))
+        util.wait_cmd(cmd, "Step %d" % i)
     print 'All done.'
