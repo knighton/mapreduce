@@ -19,11 +19,11 @@ def each_input_line(input_files, shard, n_shards):
     z = int(math.ceil(z))
 
     # for each input file, yield the slices we want from it.
-    inf_gen = itertools.cycle(range(n_shards))
     for i in range(a, z):
         aa = n_shards * i
         zz = n_shards * (i + 1)
         assign = slice_assignments[aa:zz]
+        inf_gen = itertools.cycle(range(n_shards))
         with open(input_files[i], 'r') as fh:
             for j, line in itertools.izip(inf_gen, fh):
                 if shard == assign[j]:

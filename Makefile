@@ -20,6 +20,7 @@ dev: env/bin/activate dev_requirements.txt
 clean:
 	$(PYTHON) setup.py clean
 	find . -type f -name "*.pyc" -exec rm {} \;
+	rm -rf tmp/* out/*
 
 nuke: clean
 	rm -rf *.egg *.egg-info env bin cover coverage.xml nosetests.xml
