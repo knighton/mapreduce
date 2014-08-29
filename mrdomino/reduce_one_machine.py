@@ -28,5 +28,7 @@ def do_shard(shard):
 
 
 shards = map(int, args.shards.split(','))
+print "Scheduling shards %s for system-level parallel reduce processing" \
+    % shards
 pool = Pool(processes=len(shards))
 pool.map(do_shard, shards)

@@ -18,7 +18,7 @@ def reduce1(key, vals, increment_counter):
     uname, domain = key.split("@")
     tld = re.match(r'^.*\b([^\.]+\.[^\.]+)$', domain).group(1)
     increment_counter("TLD reduce1", tld, total)
-    yield key, sum(vals)    # username -> count of posts
+    yield key, total    # username -> count of posts
 
 
 def map2(key, val, increment_counter):
