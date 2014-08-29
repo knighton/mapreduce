@@ -2,7 +2,9 @@ from argparse import ArgumentParser
 import imp
 import os
 import time
-from mrdomino import util, EXEC_SCRIPT
+from itertools import imap
+from mrdomino import EXEC_SCRIPT
+from mrdomino.util import MRCounter, create_cmd, read_files
 
 ap = ArgumentParser()
 ap.add_argument('--input_files', type=str, nargs='+',
@@ -68,6 +70,18 @@ class ShardState(object):
     NOT_STARTED = 0
     IN_PROGRESS = 1
     DONE = 2
+
+
+def combine_counters(work_dir, n_map_shards, n_reduce_shards):
+    ff = map(lambda (work_dir, shard):
+             os.path.join(work_dir, 'map.counters.%d' % shard),
+             zip([work_dir] * n_map_shards, range(n_map_shards)))
+    ff += map(lambda (work_dir, shard):
+              os.path.join(work_dir, 'reduce.counters.%d' % shard),
+              zip([work_dir] * n_reduce_shards, range(n_reduce_shards)))
+    return MRCounter.sum(
+        imap(MRCounter.from_json,
+             read_files(filter(os.path.exists, ff))))
 
 
 def update_shards_done(done_pattern, num_shards, use_domino, shard2state):
@@ -176,7 +190,7 @@ def main():
     print 'Working directory: %s' % work_dir
 
     print 'Starting %d mappers.' % args.n_map_shards
-    cmd = util.create_cmd('mrdomino.map_one_machine', {
+    cmd = create_cmd('mrdomino.map_one_machine', {
         'step_idx': args.step_idx,
         'total_steps': args.total_steps,
         'shards': '%s',
@@ -192,19 +206,20 @@ def main():
         args.n_concurrent_machines, args.poll_done_interval_sec,
         done_file_pattern, args.use_domino)
 
-    util.show_combined_counters(
+    counter = combine_counters(
         work_dir, args.n_map_shards, args.n_reduce_shards)
+    counter.show()
 
     # shuffle mapper outputs to reducer inputs.
     print 'Shuffling data.'
-    cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.shuffle', {
+    cmd = create_cmd(EXEC_SCRIPT + ' mrdomino.shuffle', {
         'work_dir': work_dir,
         'n_reduce_shards': args.n_reduce_shards
     })
     os.system(cmd)
 
     print 'Starting %d reducers.' % args.n_reduce_shards
-    cmd = util.create_cmd('mrdomino.reduce_one_machine', {
+    cmd = create_cmd('mrdomino.reduce_one_machine', {
         'step_idx': args.step_idx,
         'total_steps': args.total_steps,
         'shards': '%s',
@@ -220,8 +235,9 @@ def main():
         args.n_concurrent_machines, args.poll_done_interval_sec,
         done_file_pattern, args.use_domino)
 
-    util.show_combined_counters(
+    counter = combine_counters(
         work_dir, args.n_map_shards, args.n_reduce_shards)
+    counter.show()
 
     # done.
     print 'Mapreduce step done.'
