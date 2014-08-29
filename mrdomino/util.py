@@ -1,9 +1,7 @@
 import collections
 import json
-import os
 import time
-import random
-import string
+import operator
 import functools
 
 NestedCounter = functools.partial(collections.defaultdict, collections.Counter)
@@ -14,7 +12,7 @@ class MRCounter(collections.Iterable):
         self.counter = NestedCounter()
 
     def __iter__(self):
-        return self.counter.__iter()
+        return self.counter.__iter__()
 
     def iteritems(self):
         return self.counter.iteritems()
@@ -22,13 +20,48 @@ class MRCounter(collections.Iterable):
     def incr(self, key, sub_key, incr):
         self.counter[key][sub_key] += incr
 
+    def __iadd__(self, d):
+        """Add another counter (allows += operator)"""
+        counter = self.counter
+        for key, val in d.iteritems():
+            counter[key].update(val)
+        return self
 
-def create_cmd(prefix, opts=None):
-    if opts is None:
-        return prefix
+    def show(self):
+        print 'Counters:'
+        for key, sub_dict in sorted(self.iteritems()):
+            print '  %s:' % key
+            for sub_key, count in sorted(sub_dict.iteritems()):
+                print '    %s: %d' % (sub_key, count)
 
-    suffix = ' '.join('--{} {}'.format(k, v) for k, v in opts.iteritems())
-    return prefix + ' ' + suffix
+    def to_json(self):
+        arr = []
+        for key, sub_dict in sorted(self.iteritems()):
+            for sub_key, count in sorted(sub_dict.iteritems()):
+                arr.append({
+                    'key': key,
+                    'sub_key': sub_key,
+                    'count': count,
+                })
+        return json.dumps({
+            'counters': arr,
+        })
+
+    @classmethod
+    def from_json(cls, s):
+        r = MRCounter()
+        j = json.loads(s)
+        for d in j['counters']:
+            key = d['key']
+            sub_key = d['sub_key']
+            count = d['count']
+            r.incr(key, sub_key, count)
+        return r
+
+    @classmethod
+    def sum(cls, iterable):
+        """Sum a series of instances of cls"""
+        return reduce(operator.__iadd__, iterable, cls())
 
 
 class Timer(object):
@@ -48,71 +81,15 @@ class Timer(object):
             % (self.clock_interval, self.wall_interval)
 
 
-def json_str_from_counters(counters):
-    arr = []
-    for key, sub_dict in sorted(counters.iteritems()):
-        for sub_key, count in sorted(sub_dict.iteritems()):
-            arr.append({
-                'key': key,
-                'sub_key': sub_key,
-                'count': count,
-            })
-    return json.dumps({
-        'counters': arr,
-    })
+def create_cmd(prefix, opts=None):
+    if opts is None:
+        return prefix
+
+    suffix = ' '.join('--{} {}'.format(k, v) for k, v in opts.iteritems())
+    return prefix + ' ' + suffix
 
 
-def counters_from_json_str(s):
-    r = NestedCounter()
-    j = json.loads(s)
-    for d in j['counters']:
-        key = d['key']
-        sub_key = d['sub_key']
-        count = d['count']
-        r[key][sub_key] += count
-    return r
-
-
-def combine_counters_from_files(ff):
-    r = NestedCounter()
-    for f in ff:
+def read_files(filenames):
+    for f in filenames:
         with open(f, 'r') as fh:
-            s = fh.read()
-        d = counters_from_json_str(s)
-        for key, val in d.iteritems():
-            r[key].update(val)
-    return r
-
-
-def show_counters(d):
-    if d:
-        print 'Counters:'
-    for key in sorted(d):
-        print '  %s:' % key
-        for sub_key in sorted(d[key]):
-            count = d[key][sub_key]
-            print '    %s: %d' % (sub_key, count)
-
-
-def show_combined_counters_from_files(ff):
-    d = combine_counters_from_files(ff)
-    show_counters(d)
-
-
-def show_combined_counters(work_dir, n_map_shards, n_reduce_shards):
-    ff = map(lambda (work_dir, shard):
-             os.path.join(work_dir, 'map.counters.%d' % shard),
-             zip([work_dir] * n_map_shards, range(n_map_shards)))
-    ff += map(lambda (work_dir, shard):
-              os.path.join(work_dir, 'reduce.counters.%d' % shard),
-              zip([work_dir] * n_reduce_shards, range(n_reduce_shards)))
-    ff = filter(os.path.exists, ff)
-    show_combined_counters_from_files(ff)
-
-
-def random_string(length):
-    choices = string.ascii_lowercase + string.ascii_uppercase + string.digits
-    cc = []
-    for i in range(length):
-        cc.append(random.choice(choices))
-    return ''.join(cc)
+            yield fh.read()
