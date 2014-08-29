@@ -7,24 +7,31 @@ from mrdomino import mapreduce
 def map1(_, line, increment_counter):
     j = json.loads(line)
     key = j[u'object'][u'user_id']
-    assert key is not None
+    uname, domain = key.split("@")
+    tld = re.match(r'^.*\b([^\.]+\.[^\.]+)$', domain).group(1)
+    increment_counter("TLD map1", tld, 1)
     yield key, 1
 
 
 def reduce1(key, vals, increment_counter):
-    assert key is not None
+    total = sum(vals)
+    uname, domain = key.split("@")
+    tld = re.match(r'^.*\b([^\.]+\.[^\.]+)$', domain).group(1)
+    increment_counter("TLD reduce1", tld, total)
     yield key, sum(vals)    # username -> count of posts
 
 
 def map2(key, val, increment_counter):
     uname, domain = key.split("@")
+    tld = re.match(r'^.*\b([^\.]+\.[^\.]+)$', domain).group(1)
+    increment_counter("TLD map2", tld, val)
     yield domain, val
 
 
 def reduce2(key, vals, increment_counter):
     total = sum(vals)
     tld = re.match(r'^.*\b([^\.]+\.[^\.]+)$', key).group(1)
-    increment_counter("Top Level Domains", tld, total)
+    increment_counter("TLD reduce2", tld, total)
     yield key, total
 
 

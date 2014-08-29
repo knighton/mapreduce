@@ -32,7 +32,7 @@ Example usage (complete example at example.py):
 
 Map and reduce interface:
 
-    def map(value, increment_counter):
+    def map(_, value, increment_counter):
         ...
         yield key, value
     
@@ -40,4 +40,4 @@ and
 
     def reduce(key, values, increment_counter):
         ...
-        yield value
+        yield key, value

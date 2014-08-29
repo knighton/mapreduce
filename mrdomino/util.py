@@ -1,6 +1,8 @@
 import collections
 import json
 import time
+import sys
+import subprocess
 import operator
 import functools
 
@@ -64,7 +66,7 @@ class MRCounter(collections.Iterable):
         return reduce(operator.__iadd__, iterable, cls())
 
 
-class Timer(object):
+class MRTimer(object):
     def __enter__(self):
         self.clock_start = time.clock()
         self.wall_start = time.time()
@@ -79,6 +81,22 @@ class Timer(object):
     def __str__(self):
         return "clock: %0.03f sec, wall: %0.03f sec." \
             % (self.clock_interval, self.wall_interval)
+
+
+def wait_cmd(cmd, name="Command"):
+    try:
+        with MRTimer() as t:
+            retcode = subprocess.call(cmd, shell=True)
+        if retcode < 0:
+            print >>sys.stderr, \
+                "{} terminated by signal {}".format(name, -retcode)
+        else:
+            print >>sys.stderr, \
+                "{} finished with status code {}".format(name, retcode)
+        print >>sys.stderr, "{} run stats: {}".format(name, str(t))
+    except OSError as e:
+        print >>sys.stderr, "{} failed: {}".format(name, e)
+    return retcode
 
 
 def create_cmd(prefix, opts=None):
