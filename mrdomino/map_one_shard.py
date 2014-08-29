@@ -43,11 +43,15 @@ def map(shard, args):
     # process each line of input.
     count = 0
     out_fn = os.path.join(args.work_dir, 'map.out.%d' % shard)
+    lines_seen_counter = "lines seen (step %d)" % args.step_idx
+    lines_written_counter = "lines written (step %d)" % args.step_idx
     unpack_tuple = args.step_idx > 0
     with open(out_fn, 'w') as out_f:
         for line in each_input_line(args.input_files, shard, args.n_shards):
             k, v = json.loads(line) if unpack_tuple else (None, line)
+            counters.incr(lines_seen_counter, "map", 1)
             for kv in map_func(k, v, counters.incr):
+                counters.incr(lines_written_counter, "map", 1)
                 out_f.write(json.dumps(kv) + '\n')
                 count += 1
 

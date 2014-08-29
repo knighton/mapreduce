@@ -143,10 +143,6 @@ def schedule_machines(
             post = ' &'
         return '%s%s%s' % (pre, cmd, post)
 
-    # shard -> state
-    # 0: not started
-    # 1: in progress
-    # 2: completed
     shard2state = dict(zip(
         range(n_shards),
         [ShardState.NOT_STARTED] * n_shards))
