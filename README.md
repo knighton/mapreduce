@@ -3,7 +3,7 @@ mrdomino
 
 Implementation of mapreduce to run on http://dominoup.com.
 
-Example usage (complete example at example.py):
+Example usage (see complete example at examples/example.py):
 
     steps = [
         {
