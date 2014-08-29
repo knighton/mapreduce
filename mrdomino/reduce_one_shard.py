@@ -22,25 +22,26 @@ def reduce(shard, args):
     in_f = os.path.join(args.work_dir, 'reduce.in.%d' % shard)
     out_f = os.path.join(args.output_dir, 'reduce.out.%d' % shard)
     with nested_context(open(in_f, 'r'), open(out_f, 'w')) as (in_fh, out_fh):
-        cur_key = None
+        last_key = None
         values = []
-        while True:
-            try:
-                line = in_fh.next()
-            except StopIteration:
-                # dump any remaining content
-                if cur_key is not None:
-                    for kv in reduce_func(cur_key, values, increment_counter):
-                        out_fh.write(json.dumps(kv) + '\n')
-                break
+        for line in in_fh:
             key, value = json.loads(line)
-            if key == cur_key:
+            if key == last_key:
+                # extend previous run
                 values.append(value)
             else:
-                for kv in reduce_func(cur_key, values, increment_counter):
-                    out_fh.write(json.dumps(kv) + '\n')
-                cur_key = key
+                # end previous run
+                if values:
+                    for kv in reduce_func(last_key, values, increment_counter):
+                        out_fh.write(json.dumps(kv) + '\n')
+
+                # start new run
+                last_key = key
                 values = [value]
+        # dump any remaining values
+        if values:
+            for kv in reduce_func(last_key, values, increment_counter):
+                out_fh.write(json.dumps(kv) + '\n')
 
     # write out the counters to file.
     f = os.path.join(args.work_dir, 'reduce.counters.%d' % shard)
