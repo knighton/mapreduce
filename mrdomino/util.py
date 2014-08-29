@@ -9,6 +9,20 @@ import functools
 NestedCounter = functools.partial(collections.defaultdict, collections.Counter)
 
 
+class MRCounter(collections.Iterable):
+    def __init__(self):
+        self.counter = NestedCounter()
+
+    def __iter__(self):
+        return self.counter.__iter()
+
+    def iteritems(self):
+        return self.counter.iteritems()
+
+    def incr(self, key, sub_key, incr):
+        self.counter[key][sub_key] += incr
+
+
 def create_cmd(prefix, opts=None):
     if opts is None:
         return prefix

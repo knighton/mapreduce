@@ -3,7 +3,7 @@ import json
 import os
 from contextlib import nested as nested_context
 
-from mrdomino.util import json_str_from_counters, NestedCounter
+from mrdomino.util import json_str_from_counters, MRCounter
 
 
 def reduce(shard, args):
@@ -13,10 +13,7 @@ def reduce(shard, args):
     reduce_func = getattr(reduce_module, args.reduce_func)
 
     # the counters.
-    counters = NestedCounter()
-
-    def increment_counter(key, sub_key, incr):
-        counters[key][sub_key] += incr
+    counters = MRCounter()
 
     # process each (key, value) pair.
     in_f = os.path.join(args.work_dir, 'reduce.in.%d' % shard)
@@ -32,7 +29,7 @@ def reduce(shard, args):
             else:
                 # end previous run
                 if values:
-                    for kv in reduce_func(last_key, values, increment_counter):
+                    for kv in reduce_func(last_key, values, counters.incr):
                         out_fh.write(json.dumps(kv) + '\n')
 
                 # start new run
@@ -40,7 +37,7 @@ def reduce(shard, args):
                 values = [value]
         # dump any remaining values
         if values:
-            for kv in reduce_func(last_key, values, increment_counter):
+            for kv in reduce_func(last_key, values, counters.incr):
                 out_fh.write(json.dumps(kv) + '\n')
 
     # write out the counters to file.

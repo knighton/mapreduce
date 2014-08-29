@@ -1,3 +1,4 @@
+import re
 import glob
 import json
 from mrdomino import mapreduce
@@ -5,29 +6,26 @@ from mrdomino import mapreduce
 
 def map1(_, line, increment_counter):
     j = json.loads(line)
-    yield j[u'object'][u'user_id'], 1
+    key = j[u'object'][u'user_id']
+    assert key is not None
+    yield key, 1
 
 
 def reduce1(key, vals, increment_counter):
-
-    # username -> count of posts
-    yield key, sum(vals)
+    assert key is not None
+    yield key, sum(vals)    # username -> count of posts
 
 
 def map2(key, val, increment_counter):
-    # find domains
-    if key is None:
-        increment_counter('map2', 'key_is_None', 1)
-    else:
-        t = key.split("@")
-        if len(t) == 2:
-            yield t[1], val
-        else:
-            increment_counter('map2', 'no_domain', 1)
+    uname, domain = key.split("@")
+    yield domain, val
 
 
 def reduce2(key, vals, increment_counter):
-    yield key, sum(vals)
+    total = sum(vals)
+    tld = re.match(r'^.*\b([^\.]+\.[^\.]+)$', key).group(1)
+    increment_counter("Top Level Domains", tld, total)
+    yield key, total
 
 
 def main():

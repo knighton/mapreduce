@@ -4,7 +4,7 @@ import math
 import os
 import itertools
 
-from mrdomino.util import json_str_from_counters, NestedCounter
+from mrdomino.util import json_str_from_counters, MRCounter
 
 
 def each_input_line(input_files, shard, n_shards):
@@ -38,10 +38,7 @@ def map(shard, args):
     map_func = getattr(map_module, args.map_func)
 
     # the counters.
-    counters = NestedCounter()
-
-    def increment_counter(key, sub_key, incr):
-        counters[key][sub_key] += incr
+    counters = MRCounter()
 
     # process each line of input.
     count = 0
@@ -50,7 +47,7 @@ def map(shard, args):
     with open(out_fn, 'w') as out_f:
         for line in each_input_line(args.input_files, shard, args.n_shards):
             k, v = json.loads(line) if unpack_tuple else (None, line)
-            for kv in map_func(k, v, increment_counter):
+            for kv in map_func(k, v, counters.incr):
                 out_f.write(json.dumps(kv) + '\n')
                 count += 1
 
