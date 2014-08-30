@@ -147,7 +147,7 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
 
     while True:
         # go to disk and look for shard done files.
-        print 'Checking for shard completion.'
+        print 'Checking for completion of shards {}'.format(done_file_pattern)
         update_shards_done(done_file_pattern, n_shards, args.use_domino,
                            shard2state)
 
@@ -224,7 +224,6 @@ def main():
         'reduce_module': args.reduce_module,
         'reduce_func': args.reduce_func,
         'work_dir': work_dir,
-        'output_dir': args.output_dir
     })
     schedule_machines(
         args,
@@ -235,6 +234,26 @@ def main():
     counter = combine_counters(
         work_dir, args.n_map_shards, args.n_reduce_shards)
     counter.show()
+
+    if args.step_idx == args.total_steps - 1:
+
+        print 'Final reduce'
+        cmd = create_cmd('mrdomino.reduce_one_machine', {
+            'step_idx': args.step_idx,
+            'total_steps': args.total_steps,
+            'shards': '%s',
+            'n_shards': 1,
+            'reduce_module': args.reduce_module,
+            'reduce_func': args.reduce_func,
+            'glob_prefix': 'reduce.out',
+            'work_dir': work_dir,
+            'output_dir': args.output_dir
+        })
+        schedule_machines(
+            args,
+            command=cmd,
+            done_file_pattern=os.path.join(args.output_dir, 'reduce.done.%d'),
+            n_shards=1)
 
     # done.
     print 'Mapreduce step done.'

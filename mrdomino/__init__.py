@@ -14,30 +14,28 @@ def mapreduce(steps, settings):
     tmp_root = settings['tmp_dir']
     if not os.path.exists(tmp_root):
         os.makedirs(tmp_root)
-    tmp_dirs = [mkdtemp(dir=tmp_root) for _ in range(step_count - 1)]
+    tmp_dirs = [mkdtemp(dir=tmp_root, prefix="step%d." % i)
+                for i in range(step_count)]
 
     input_file_lists = [settings['input_files']]
-    output_dirs = []
     for step, out_dir in zip(steps, tmp_dirs):
         n_reducers = step['n_reducers']
         reduce_format = os.path.join(out_dir, 'reduce.out.%d')
         ff = [reduce_format % n for n in range(n_reducers)]
         input_file_lists.append(ff)
-        output_dirs.append(out_dir)
 
     # if output directory root does not exist, create one
     output_dir = settings['output_dir']
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    output_dirs.append(output_dir)
 
     for i, step in enumerate(steps):
         cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.step', {
             'step_idx': i,
             'total_steps': step_count,
             'input_files': ' '.join(input_file_lists[i]),
-            'output_dir': output_dirs[i],
-            'work_dir': mkdtemp(dir=tmp_root, prefix="step%d." % i),
+            'work_dir': tmp_dirs[i],
+            'output_dir': output_dir,
             'map_module': step['mapper'].func_globals['__file__'],
             'map_func': step['mapper'].func_name,
             'n_map_shards': step['n_mappers'],

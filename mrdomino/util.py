@@ -4,6 +4,7 @@ import time
 import subprocess
 import operator
 import functools
+import fileinput
 
 NestedCounter = functools.partial(collections.defaultdict, collections.Counter)
 
@@ -80,6 +81,21 @@ class MRTimer(object):
     def __str__(self):
         return "clock: %0.03f sec, wall: %0.03f sec." \
             % (self.clock_interval, self.wall_interval)
+
+
+class MRFileInput(object):
+	"""Emulates context behavior of fileinput in Python 3"""
+
+    def __init__(self, files, mode='r'):
+        self.files = files
+        self.mode = mode
+
+    def __enter__(self):
+        self.fh = fileinput.input(self.files, mode=self.mode)
+        return self.fh
+
+    def __exit__(self, *args):
+        self.fh.close()
 
 
 def wait_cmd(cmd, name="Command"):
