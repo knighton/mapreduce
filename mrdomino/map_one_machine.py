@@ -20,6 +20,8 @@ ap.add_argument('--map_func', type=str,
                 help='mapper function name')
 ap.add_argument('--work_dir', type=str,
                 help='directory containing map output files')
+ap.add_argument('--output_prefix', type=str, default='map.out',
+                help='string to prefix output files')
 args = ap.parse_args()
 
 

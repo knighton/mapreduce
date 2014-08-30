@@ -1,9 +1,11 @@
 import imp
 import json
-import os
+from os.path import join as path_join
+from glob import glob
+from functools import partial
 from contextlib import nested as nested_context
 
-from mrdomino.util import MRCounter
+from mrdomino.util import MRCounter, MRFileInput
 
 
 def reduce(shard, args):
@@ -15,12 +17,27 @@ def reduce(shard, args):
     # the counters.
     counters = MRCounter()
 
+    # default to work_dir if output_dir is not set
+    work_dir = args.work_dir
+    output_dir = args.output_dir
+    if output_dir is None:
+        output_dir = work_dir
+
     # process each (key, value) pair.
-    in_f = os.path.join(args.work_dir, 'reduce.in.%d' % shard)
-    out_f = os.path.join(args.output_dir, 'reduce.out.%d' % shard)
+    out_f = path_join(output_dir, args.output_prefix + '.%d' % shard)
     lines_seen_counter = "lines seen (step %d)" % args.step_idx
     lines_written_counter = "lines written (step %d)" % args.step_idx
-    with nested_context(open(in_f, 'r'), open(out_f, 'w')) as (in_fh, out_fh):
+
+    if args.glob_prefix is None:
+        # use input prefix by default
+        in_f = path_join(work_dir, args.input_prefix + '.%d' % shard)
+        input_stream = partial(open, in_f, 'r')
+    else:
+        # if glob_prefix is set, use it
+        files = glob(path_join(work_dir, args.glob_prefix + '.*'))
+        input_stream = partial(MRFileInput, files, 'r')
+
+    with nested_context(input_stream(), open(out_f, 'w')) as (in_fh, out_fh):
         last_key = None
         values = []
         for line in in_fh:
@@ -46,11 +63,11 @@ def reduce(shard, args):
                 out_fh.write(json.dumps(kv) + '\n')
 
     # write out the counters to file.
-    f = os.path.join(args.work_dir, 'reduce.counters.%d' % shard)
+    f = path_join(output_dir, 'reduce.counters.%d' % shard)
     with open(f, 'w') as fh:
         fh.write(counters.to_json())
 
     # finally note that we are done.
-    f = os.path.join(args.work_dir, 'reduce.done.%d' % shard)
+    f = path_join(output_dir, 'reduce.done.%d' % shard)
     with open(f, 'w') as fh:
         fh.write('')

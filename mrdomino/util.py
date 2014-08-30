@@ -1,10 +1,10 @@
 import collections
 import json
 import time
-import sys
 import subprocess
 import operator
 import functools
+import fileinput
 
 NestedCounter = functools.partial(collections.defaultdict, collections.Counter)
 
@@ -83,19 +83,32 @@ class MRTimer(object):
             % (self.clock_interval, self.wall_interval)
 
 
+class MRFileInput(object):
+    """Emulates context behavior of fileinput in Python 3"""
+
+    def __init__(self, files, mode='r'):
+        self.files = files
+        self.mode = mode
+
+    def __enter__(self):
+        self.fh = fileinput.input(self.files, mode=self.mode)
+        return self.fh
+
+    def __exit__(self, *args):
+        self.fh.close()
+
+
 def wait_cmd(cmd, name="Command"):
     try:
         with MRTimer() as t:
             retcode = subprocess.call(cmd, shell=True)
         if retcode < 0:
-            print >>sys.stderr, \
-                "{} terminated by signal {}".format(name, -retcode)
+            print "{} terminated by signal {}".format(name, -retcode)
         else:
-            print >>sys.stderr, \
-                "{} finished with status code {}".format(name, retcode)
-        print >>sys.stderr, "{} run stats: {}".format(name, str(t))
+            print "{} finished with status code {}".format(name, retcode)
+        print "{} run stats: {}".format(name, str(t))
     except OSError as e:
-        print >>sys.stderr, "{} failed: {}".format(name, e)
+        print "{} failed: {}".format(name, e)
     return retcode
 
 
