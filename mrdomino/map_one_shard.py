@@ -42,7 +42,7 @@ def map(shard, args):
 
     # process each line of input.
     count = 0
-    out_fn = os.path.join(args.work_dir, 'map.out.%d' % shard)
+    out_fn = os.path.join(args.work_dir, args.output_prefix + '.%d' % shard)
     lines_seen_counter = "lines seen (step %d)" % args.step_idx
     lines_written_counter = "lines written (step %d)" % args.step_idx
     unpack_tuple = args.step_idx > 0
@@ -61,7 +61,7 @@ def map(shard, args):
         fh.write(counters.to_json())
 
     # write how many entries were written for reducer balancing purposes.
-    f = os.path.join(args.work_dir, 'map.out_count.%d' % shard)
+    f = os.path.join(args.work_dir, args.output_prefix + '_count.%d' % shard)
     with open(f, 'w') as fh:
         fh.write(str(count))
 

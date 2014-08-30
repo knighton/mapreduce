@@ -15,9 +15,15 @@ def reduce(shard, args):
     # the counters.
     counters = MRCounter()
 
+    # default to work_dir if output_dir is not set
+    work_dir = args.work_dir
+    output_dir = args.output_dir
+    if output_dir is None:
+        output_dir = work_dir
+
     # process each (key, value) pair.
-    in_f = os.path.join(args.work_dir, 'reduce.in.%d' % shard)
-    out_f = os.path.join(args.output_dir, 'reduce.out.%d' % shard)
+    in_f = os.path.join(work_dir, args.input_prefix + '.%d' % shard)
+    out_f = os.path.join(output_dir, args.output_prefix + '.%d' % shard)
     lines_seen_counter = "lines seen (step %d)" % args.step_idx
     lines_written_counter = "lines written (step %d)" % args.step_idx
     with nested_context(open(in_f, 'r'), open(out_f, 'w')) as (in_fh, out_fh):
@@ -46,11 +52,11 @@ def reduce(shard, args):
                 out_fh.write(json.dumps(kv) + '\n')
 
     # write out the counters to file.
-    f = os.path.join(args.work_dir, 'reduce.counters.%d' % shard)
+    f = os.path.join(work_dir, 'reduce.counters.%d' % shard)
     with open(f, 'w') as fh:
         fh.write(counters.to_json())
 
     # finally note that we are done.
-    f = os.path.join(args.work_dir, 'reduce.done.%d' % shard)
+    f = os.path.join(work_dir, 'reduce.done.%d' % shard)
     with open(f, 'w') as fh:
         fh.write('')

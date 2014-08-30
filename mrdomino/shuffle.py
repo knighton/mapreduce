@@ -1,34 +1,39 @@
-from argparse import ArgumentParser
-import glob
-import os
 import heapq
+from glob import glob
+from argparse import ArgumentParser
+from os.path import join as path_join
+from itertools import imap
+from mrdomino.util import read_files
+
 
 ap = ArgumentParser()
-ap.add_argument('--work_dir', type=str,
+ap.add_argument('--work_dir', type=str, required=True,
                 help='directory containing files to shuffle')
-ap.add_argument('--n_reduce_shards', type=int,
+ap.add_argument('--n_reduce_shards', type=int, required=True,
                 help='number of reducers to create input files for')
+ap.add_argument('--input_prefix', type=str, default='map.out',
+                help='string that input files are prefixed with')
+ap.add_argument('--output_prefix', type=str, default='reduce.in',
+                help='string to prefix output files')
 args = ap.parse_args()
 
-assert args.work_dir
-assert args.n_reduce_shards
-
 # count exactly how many input lines we have so we can balance work.
-num_entries = 0
-count_ff = glob.glob(os.path.join(args.work_dir, 'map.out_count.*'))
-for f in count_ff:
-    with open(f, 'r') as fh:
-        num_entries += int(fh.read())
+count_ff = glob(path_join(args.work_dir, args.input_prefix + '_count.*'))
+num_entries = sum(imap(int, read_files(count_ff)))
 
-in_ff = sorted(glob.glob(os.path.join(args.work_dir, 'map.out.*')))
+in_ff = sorted(glob(path_join(args.work_dir, args.input_prefix + '.*')))
 sources = [open(f, 'r') for f in in_ff]
 
-out_format = os.path.join(args.work_dir, 'reduce.in.%d')
-out_ff = map(lambda i: open(out_format % i, 'w'),
-             range(args.n_reduce_shards))
+n_output_files = args.n_reduce_shards
+out_format = path_join(args.work_dir, args.output_prefix + '.%d')
+outputs = [open(out_format % i, 'w') for i in range(n_output_files)]
 
-count = 0
-for line in heapq.merge(*sources):
-    index = count * len(out_ff) / num_entries
-    out_ff[index].write(line)
-    count += 1
+for count, line in enumerate(heapq.merge(*sources)):
+    index = count * n_output_files / num_entries
+    outputs[index].write(line)
+
+for source in sources:
+    source.close()
+
+for output in outputs:
+    output.close()

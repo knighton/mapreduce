@@ -209,6 +209,8 @@ def main():
     print 'Shuffling data.'
     cmd = create_cmd(EXEC_SCRIPT + ' mrdomino.shuffle', {
         'work_dir': work_dir,
+        'input_prefix': 'map.out',
+        'output_prefix': 'reduce.in',
         'n_reduce_shards': args.n_reduce_shards
     })
     wait_cmd(cmd, "Shuffling")
