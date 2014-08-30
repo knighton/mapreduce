@@ -84,7 +84,7 @@ class MRTimer(object):
 
 
 class MRFileInput(object):
-	"""Emulates context behavior of fileinput in Python 3"""
+    """Emulates context behavior of fileinput in Python 3"""
 
     def __init__(self, files, mode='r'):
         self.files = files
