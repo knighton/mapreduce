@@ -147,7 +147,6 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
 
     while True:
         # go to disk and look for shard done files.
-        print 'Checking for completion of shards {}'.format(done_file_pattern)
         update_shards_done(done_file_pattern, n_shards, args.use_domino,
                            shard2state)
 
