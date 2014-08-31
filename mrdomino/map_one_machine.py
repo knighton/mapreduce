@@ -42,7 +42,7 @@ def main():
     args = parse_args()
 
     shards = map(int, args.shards.split(','))
-    logger.info("Scheduling shards %s" % shards)
+    logger.info("Scheduling shards {} on one mapper node".format(shards))
     pool = Pool(processes=len(shards))
 
     # Note: wrapping arguments to do_shard into a tuple since multiprocessing

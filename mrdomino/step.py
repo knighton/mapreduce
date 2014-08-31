@@ -127,7 +127,7 @@ def show_shard_state(shard2state, n_shards_per_machine):
     for i in range(0, len(shards), n_shards_per_machine):
         machine_shards = shards[i:i + n_shards_per_machine]
         output.append('%s' % map(lambda i: shard2state[i], machine_shards))
-    return '\n'.join(output)
+    return ' '.join(output)
 
 
 def schedule_machines(args, command, done_file_pattern, n_shards):

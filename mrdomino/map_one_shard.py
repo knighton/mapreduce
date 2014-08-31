@@ -44,7 +44,8 @@ def map(shard, args):
     # process each line of input and sort for the merge step.
     count = 0
     out_fn = path_join(args.work_dir, args.output_prefix + '.%d' % shard)
-    p = Popen(['sort', '-o', out_fn], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    p = Popen(['sort', '-o', out_fn], stdin=PIPE, stdout=PIPE, stderr=PIPE,
+              bufsize=4096)
     lines_seen_counter = "lines seen (step %d)" % args.step_idx
     lines_written_counter = "lines written (step %d)" % args.step_idx
     unpack_tuple = args.step_idx > 0
