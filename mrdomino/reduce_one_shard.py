@@ -1,5 +1,6 @@
 import imp
 import json
+import re
 from os.path import join as path_join
 from glob import glob
 from functools import partial
@@ -34,7 +35,16 @@ def reduce(shard, args):
         input_stream = partial(open, in_f, 'r')
     else:
         # if glob_prefix is set, use it
-        files = glob(path_join(work_dir, args.glob_prefix + '.*'))
+        files = glob(path_join(work_dir, args.glob_prefix + '.[0-9]*'))
+
+        # make sure that files are sorted by shard number
+        prefix_match = re.compile('.*\\b' + args.glob_prefix + '\.(\d+)$')
+        presorted = []
+        for fn in files:
+            match = prefix_match.match(fn)
+            if match is not None:
+                presorted.append((int(match.group(1)), fn))
+        files = [fn[1] for fn in sorted(presorted)]
         input_stream = partial(MRFileInput, files, 'r')
 
     with nested_context(input_stream(), open(out_f, 'w')) as (in_fh, out_fh):
