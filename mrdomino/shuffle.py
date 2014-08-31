@@ -25,10 +25,12 @@ def main():
     args = parse_args()
 
     # count exactly how many input lines we have so we can balance work.
-    count_ff = glob(path_join(args.work_dir, args.input_prefix + '_count.*'))
+    count_ff = glob(path_join(args.work_dir,
+                              args.input_prefix + '_count.[0-9]*'))
     num_entries = sum(imap(int, read_files(count_ff)))
 
-    in_ff = sorted(glob(path_join(args.work_dir, args.input_prefix + '.*')))
+    in_ff = sorted(glob(path_join(args.work_dir,
+                                  args.input_prefix + '.[0-9]*')))
     sources = [open(f, 'r') for f in in_ff]
 
     n_output_files = args.n_reduce_shards
