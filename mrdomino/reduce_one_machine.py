@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from multiprocessing import Pool
 from mrdomino import reduce_one_shard, logger
+from mrdomino.util import MRTimer
 
 
 def parse_args():
@@ -38,7 +39,10 @@ def do_shard(t):
 
     # unwrap argument
     args, shard = t
-    reduce_one_shard.reduce(shard, args)
+
+    with MRTimer() as t:
+        reduce_one_shard.reduce(shard, args)
+    logger.info("Shard {} reduced: {}".format(shard, str(t)))
 
 
 def main():
