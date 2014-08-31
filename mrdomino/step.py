@@ -3,57 +3,57 @@ import imp
 import os
 import time
 from itertools import imap
-from mrdomino import EXEC_SCRIPT
+from mrdomino import EXEC_SCRIPT, logger
 from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd
 
-ap = ArgumentParser()
-ap.add_argument('--input_files', type=str, nargs='+',
-                help='list of input files to mappers')
-ap.add_argument('--output_dir', type=str, default='out',
-                help='directory to write output files to')
-ap.add_argument('--work_dir', type=str, required=True,
-                help='temporary working directory')
 
-ap.add_argument('--map_module', type=str)
-ap.add_argument('--map_func', type=str)
-ap.add_argument('--reduce_module', type=str)
-ap.add_argument('--reduce_func', type=str)
+def parse_args():
+    ap = ArgumentParser()
+    ap.add_argument('--input_files', type=str, nargs='+',
+                    help='list of input files to mappers')
+    ap.add_argument('--output_dir', type=str, default='out',
+                    help='directory to write output files to')
+    ap.add_argument('--work_dir', type=str, required=True,
+                    help='temporary working directory')
 
-ap.add_argument('--n_map_shards', type=int,
-                help='number of map shards')
-ap.add_argument('--n_reduce_shards', type=int, default=10,
-                help='number of reduce shards')
+    ap.add_argument('--map_module', type=str)
+    ap.add_argument('--map_func', type=str)
+    ap.add_argument('--reduce_module', type=str)
+    ap.add_argument('--reduce_func', type=str)
 
-ap.add_argument('--step_idx', type=int, required=True,
-                help='Index of this step (zero-base)')
-ap.add_argument('--total_steps', type=int, required=True,
-                help='total number of steps')
+    ap.add_argument('--n_map_shards', type=int,
+                    help='number of map shards')
+    ap.add_argument('--n_reduce_shards', type=int, default=10,
+                    help='number of reduce shards')
 
-ap.add_argument('--use_domino', type=int, default=1,
-                help='which platform to run on (local or domino)')
-ap.add_argument('--n_concurrent_machines', type=int, default=2,
-                help='maximum number of domino jobs to be running at once')
-ap.add_argument('--n_shards_per_machine', type=int, default=1,
-                help='number of processes to spawn per domino job (-1 for all)')
+    ap.add_argument('--step_idx', type=int, required=True,
+                    help='Index of this step (zero-base)')
+    ap.add_argument('--total_steps', type=int, required=True,
+                    help='total number of steps')
 
-ap.add_argument('--poll_done_interval_sec', type=int, default=45,
-                help='interval between successive checks that we are done')
+    ap.add_argument('--use_domino', type=int, default=1,
+                    help='which platform to run on (local or domino)')
+    ap.add_argument('--n_concurrent_machines', type=int, default=2,
+                    help='maximum number of domino jobs to be running at once')
+    ap.add_argument('--n_shards_per_machine', type=int, default=1,
+                    help='number of processes to spawn per domino job (-1 for all)')
 
+    ap.add_argument('--poll_done_interval_sec', type=int, default=45,
+                    help='interval between successive checks that we are done')
 
-args = ap.parse_args()
-print 'Mapreduce step:', args
+    args = ap.parse_args()
 
+    # verify that we have input for each mapper.
+    if args.n_map_shards is None:
+        args.n_map_shards = len(args.input_files)
 
-# verify that we have input for each mapper.
-if args.n_map_shards is None:
-    args.n_map_shards = len(args.input_files)
+    # verify functions exist.
+    module = imp.load_source('module', args.map_module)
+    getattr(module, args.map_func)
+    module = imp.load_source('module', args.reduce_module)
+    getattr(module, args.reduce_func)
 
-
-# verify functions exist.
-module = imp.load_source('module', args.map_module)
-func = getattr(module, args.map_func)
-module = imp.load_source('module', args.reduce_module)
-func = getattr(module, args.reduce_func)
+    return args
 
 
 class ShardState(object):
@@ -70,11 +70,11 @@ def combine_counters(work_dir, n_map_shards, n_reduce_shards):
               os.path.join(work_dir, 'reduce.counters.%d' % shard),
               zip([work_dir] * n_reduce_shards, range(n_reduce_shards)))
     return MRCounter.sum(
-        imap(MRCounter.from_json,
-             read_files(filter(os.path.exists, ff))))
+        imap(MRCounter.deserialize, read_files(filter(os.path.exists, ff))))
 
 
-def update_shards_done(done_pattern, num_shards, use_domino, shard2state):
+def update_shards_done(args, done_pattern, num_shards, use_domino,
+                       shard2state):
     """go to disk and find out which shards are completed."""
     if args.use_domino:
         os.system('domino download')
@@ -123,11 +123,11 @@ def get_shard_groups_to_start(
 
 def show_shard_state(shard2state, n_shards_per_machine):
     shards = sorted(shard2state)
-    print 'Shard state:',
+    output = ['Shard state:']
     for i in range(0, len(shards), n_shards_per_machine):
         machine_shards = shards[i:i + n_shards_per_machine]
-        print map(lambda i: shard2state[i], machine_shards),
-    print
+        output.append('%s' % map(lambda i: shard2state[i], machine_shards))
+    return '\n'.join(output)
 
 
 def schedule_machines(args, command, done_file_pattern, n_shards):
@@ -147,11 +147,10 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
 
     while True:
         # go to disk and look for shard done files.
-        print 'Checking for completion of shards {}'.format(done_file_pattern)
-        update_shards_done(done_file_pattern, n_shards, args.use_domino,
+        update_shards_done(args, done_file_pattern, n_shards, args.use_domino,
                            shard2state)
 
-        show_shard_state(shard2state, args.n_shards_per_machine)
+        logger.info(show_shard_state(shard2state, args.n_shards_per_machine))
 
         if are_all_shards_done(shard2state):
             break
@@ -163,7 +162,7 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
 
         # start the jobs.
         if start_me:
-            print 'Starting shard groups:', start_me
+            logger.info('Starting shard groups: %s' % start_me)
         for shards in start_me:
             # execute command.
             s = command % ','.join(map(str, shards))
@@ -179,12 +178,16 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
 
 
 def main():
-    print '%d input files.' % len(args.input_files)
+
+    args = parse_args()
+    logger.info('Mapreduce step: %s' % args)
+
+    logger.info('%d input files.' % len(args.input_files))
 
     work_dir = args.work_dir
-    print 'Working directory: %s' % work_dir
+    logger.info('Working directory: %s' % work_dir)
 
-    print 'Starting %d mappers.' % args.n_map_shards
+    logger.info('Starting %d mappers.' % args.n_map_shards)
     cmd = create_cmd('mrdomino.map_one_machine', {
         'step_idx': args.step_idx,
         'total_steps': args.total_steps,
@@ -203,19 +206,19 @@ def main():
 
     counter = combine_counters(
         work_dir, args.n_map_shards, args.n_reduce_shards)
-    counter.show()
+    logger.info(counter.show())
 
     # shuffle mapper outputs to reducer inputs.
-    print 'Shuffling data.'
+    logger.info('Shuffling data.')
     cmd = create_cmd(EXEC_SCRIPT + ' mrdomino.shuffle', {
         'work_dir': work_dir,
         'input_prefix': 'map.out',
         'output_prefix': 'reduce.in',
         'n_reduce_shards': args.n_reduce_shards
     })
-    wait_cmd(cmd, "Shuffling")
+    wait_cmd(cmd, logger, "Shuffling")
 
-    print 'Starting %d reducers.' % args.n_reduce_shards
+    logger.info('Starting %d reducers.' % args.n_reduce_shards)
     cmd = create_cmd('mrdomino.reduce_one_machine', {
         'step_idx': args.step_idx,
         'total_steps': args.total_steps,
@@ -233,11 +236,11 @@ def main():
 
     counter = combine_counters(
         work_dir, args.n_map_shards, args.n_reduce_shards)
-    counter.show()
+    logger.info(counter.show())
 
     if args.step_idx == args.total_steps - 1:
 
-        print 'Final reduce'
+        logger.info('Final reduce')
         cmd = create_cmd('mrdomino.reduce_one_machine', {
             'step_idx': args.step_idx,
             'total_steps': args.total_steps,
@@ -256,7 +259,7 @@ def main():
             n_shards=1)
 
     # done.
-    print 'Mapreduce step done.'
+    logger.info('Mapreduce step done.')
 
 
 if __name__ == '__main__':

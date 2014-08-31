@@ -6,6 +6,7 @@ import operator
 import functools
 import fileinput
 
+
 NestedCounter = functools.partial(collections.defaultdict, collections.Counter)
 
 
@@ -30,13 +31,14 @@ class MRCounter(collections.Iterable):
         return self
 
     def show(self):
-        print 'Counters:'
+        output = ['Counters:']
         for key, sub_dict in sorted(self.iteritems()):
-            print '  %s:' % key
+            output.append('  %s:' % key)
             for sub_key, count in sorted(sub_dict.iteritems()):
-                print '    %s: %d' % (sub_key, count)
+                output.append('    %s: %d' % (sub_key, count))
+        return '\n'.join(output)
 
-    def to_json(self):
+    def serialize(self):
         arr = []
         for key, sub_dict in sorted(self.iteritems()):
             for sub_key, count in sorted(sub_dict.iteritems()):
@@ -50,7 +52,16 @@ class MRCounter(collections.Iterable):
         })
 
     @classmethod
-    def from_json(cls, s):
+    def deserialize(cls, s):
+        """
+
+        >>> c = MRCounter()
+        >>> c.incr("a", "b", 2)
+        >>> c.incr("b", "c", 3)
+        >>> d = MRCounter.deserialize(c.serialize())
+        >>> c.counter == d.counter
+        True
+        """
         r = MRCounter()
         j = json.loads(s)
         for d in j['counters']:
@@ -98,17 +109,18 @@ class MRFileInput(object):
         self.fh.close()
 
 
-def wait_cmd(cmd, name="Command"):
+def wait_cmd(cmd, logger, name="Command"):
     try:
         with MRTimer() as t:
             retcode = subprocess.call(cmd, shell=True)
         if retcode < 0:
-            print "{} terminated by signal {}".format(name, -retcode)
+            logger.error("{} terminated by signal {}".format(name, -retcode))
         else:
-            print "{} finished with status code {}".format(name, retcode)
-        print "{} run stats: {}".format(name, str(t))
+            logger.info(
+                "{} finished with status code {}".format(name, retcode))
+        logger.info("{} run stats: {}".format(name, str(t)))
     except OSError as e:
-        print "{} failed: {}".format(name, e)
+        logger.error("{} failed: {}".format(name, e))
     return retcode
 
 
@@ -124,3 +136,8 @@ def read_files(filenames):
     for f in filenames:
         with open(f, 'r') as fh:
             yield fh.read()
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

@@ -1,5 +1,6 @@
 .PHONY: clean virtualenv upgrade test package dev run
 
+PACKAGE = mrdomino
 PYENV = . env/bin/activate;
 PYTHON = $(PYENV) python
 PYTHON_TIMED = $(PYENV) time python
@@ -12,14 +13,14 @@ package: env
 	$(PYTHON) setup.py sdist
 
 test: env dev
-	$(PYENV) nosetests $(NOSEARGS)
+	$(PYENV) nosetests --with-doctest $(NOSEARGS)
 
 dev: env/bin/activate dev_requirements.txt
 	$(PYENV) pip install --process-dependency-links -e . -r dev_requirements.txt
 
 clean:
 	$(PYTHON) setup.py clean
-	find . -type f -name "*.pyc" -exec rm {} \;
+	find $(PACKAGE) -type f -name "*.pyc" -exec rm {} \;
 	rm -rf tmp/* out/*
 
 nuke: clean

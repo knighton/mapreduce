@@ -58,7 +58,7 @@ def map(shard, args):
     # write out the counters to file.
     f = os.path.join(args.work_dir, 'map.counters.%d' % shard)
     with open(f, 'w') as fh:
-        fh.write(counters.to_json())
+        fh.write(counters.serialize())
 
     # write how many entries were written for reducer balancing purposes.
     f = os.path.join(args.work_dir, args.output_prefix + '_count.%d' % shard)
