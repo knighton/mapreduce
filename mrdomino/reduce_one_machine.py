@@ -40,9 +40,9 @@ def do_shard(t):
     # unwrap argument
     args, shard = t
 
-    with MRTimer() as t:
+    with MRTimer() as timer:
         reduce_one_shard.reduce(shard, args)
-    logger.info("Shard {} reduced: {}".format(shard, str(t)))
+    logger.info("Shard {} reduced: {}".format(shard, str(timer)))
 
 
 def main():

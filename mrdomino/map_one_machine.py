@@ -33,9 +33,9 @@ def do_shard(t):
     # unwrap argument
     args, shard = t
 
-    with MRTimer() as t:
+    with MRTimer() as timer:
         map_one_shard.map(shard, args)
-    logger.info("Shard {} mapped: {}".format(shard, str(t)))
+    logger.info("Shard {} mapped: {}".format(shard, str(timer)))
 
 
 def main():
