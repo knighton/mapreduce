@@ -1,7 +1,17 @@
 import os
-from mrdomino import util
+import sys
+import logging
 from pkg_resources import resource_filename
 from tempfile import mkdtemp
+from mrdomino import util
+
+logger = logging.getLogger('mrdomino')
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stderr)
+formatter = logging.Formatter('%(asctime)s: %(levelname)s: %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 EXEC_SCRIPT = resource_filename(__name__, "exec.sh")
 
@@ -46,5 +56,5 @@ def mapreduce(steps, settings):
             'n_concurrent_machines': settings['n_concurrent_machines'],
             'n_shards_per_machine': settings['n_shards_per_machine']
         })
-        util.wait_cmd(cmd, "Step %d" % i)
-    print 'All done.'
+        util.wait_cmd(cmd, logger, "Step %d" % i)
+    logger.info('All done.')

@@ -65,7 +65,7 @@ def reduce(shard, args):
     # write out the counters to file.
     f = path_join(output_dir, 'reduce.counters.%d' % shard)
     with open(f, 'w') as fh:
-        fh.write(counters.to_json())
+        fh.write(counters.serialize())
 
     # finally note that we are done.
     f = path_join(output_dir, 'reduce.done.%d' % shard)
