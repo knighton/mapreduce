@@ -45,20 +45,25 @@ def map(shard, args):
     count = 0
     out_fn = path_join(args.work_dir, args.output_prefix + '.%d' % shard)
 
-    proc_combine = Popen([EXEC_SCRIPT, 'mrdomino.combine',
-                          '--combine_module', args.combine_module,
-                          '--combine_func', args.combine_func,
-                          '--output', out_fn],
-                         bufsize=4096, stdin=PIPE)
-    proc_sort = Popen(['sort'],
-                      bufsize=4096, stdin=PIPE, stdout=proc_combine.stdin)
+    if args.combine_func is None:
+        proc_sort = Popen(['sort', '-o', out_fn], bufsize=4096, stdin=PIPE)
+        proc = proc_sort
+    else:
+        proc_combine = Popen([EXEC_SCRIPT, 'mrdomino.combine',
+                              '--combine_module', args.combine_module,
+                              '--combine_func', args.combine_func,
+                              '--output', out_fn],
+                             bufsize=4096, stdin=PIPE)
+        proc_sort = Popen(['sort'], bufsize=4096,
+                          stdin=PIPE, stdout=proc_combine.stdin)
+        proc = proc_combine
 
     lines_seen_counter = "lines seen (step %d)" % args.step_idx
     lines_written_counter = "lines written (step %d)" % args.step_idx
     unpack_tuple = args.step_idx > 0
 
     # using with block here ensures that proc_sort.stdin is closed on exit and
-    # that it won't block proc_combine
+    # that it won't block the pipeline
     with proc_sort.stdin as in_fh:
         for line in each_input_line(args.input_files, shard, args.n_shards):
             k, v = json.loads(line) if unpack_tuple else (None, line)
@@ -78,8 +83,8 @@ def map(shard, args):
     with open(f, 'w') as fh:
         fh.write(str(count))
 
-    # `communicate' will wait for proc_combine to terminate
-    comb_stdout, comb_stderr = proc_combine.communicate()
+    # `communicate' will wait for subprocess to terminate
+    comb_stdout, comb_stderr = proc.communicate()
 
     # finally note that we are done.
     f = path_join(args.work_dir, 'map.done.%d' % shard)
