@@ -1,6 +1,7 @@
 import imp
 import json
 import re
+import sys
 from os.path import join as path_join
 from glob import glob
 from functools import partial
@@ -29,11 +30,8 @@ def reduce(shard, args):
     lines_seen_counter = "lines seen (step %d)" % args.step_idx
     lines_written_counter = "lines written (step %d)" % args.step_idx
 
-    if args.glob_prefix is None:
-        # use input prefix by default
-        in_f = path_join(work_dir, args.input_prefix + '.%d' % shard)
-        input_stream = partial(open, in_f, 'r')
-    else:
+    if args.glob_prefix is not None:
+
         # if glob_prefix is set, use it
         files = glob(path_join(work_dir, args.glob_prefix + '.[0-9]*'))
 
@@ -46,6 +44,15 @@ def reduce(shard, args):
                 presorted.append((int(match.group(1)), fn))
         files = [fn[1] for fn in sorted(presorted)]
         input_stream = partial(MRFileInput, files, 'r')
+
+    elif args.input_prefix is not None:
+        # otherwise use input prefix
+        in_f = path_join(work_dir, args.input_prefix + '.%d' % shard)
+        input_stream = partial(open, in_f, 'r')
+
+    else:
+        # otherwise use stdin
+        input_stream = sys.stdin
 
     with nested_context(input_stream(), open(out_f, 'w')) as (in_fh, out_fh):
         last_key = None

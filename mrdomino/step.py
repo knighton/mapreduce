@@ -167,6 +167,7 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
             # execute command.
             s = command % ','.join(map(str, shards))
             s = wrap_cmd(s, args.use_domino)
+            logger.info("Starting process: {}".format(s))
             os.system(s)
 
             # note them as started.
@@ -225,6 +226,7 @@ def main():
         'shards': '%s',
         'n_shards': args.n_reduce_shards,
         'reduce_module': args.reduce_module,
+        'input_prefix': 'reduce.in',
         'reduce_func': args.reduce_func,
         'work_dir': work_dir,
     })

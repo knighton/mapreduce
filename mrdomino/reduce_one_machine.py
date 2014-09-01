@@ -23,7 +23,7 @@ def parse_args():
     ap.add_argument('--output_dir', type=str, default=None,
                     help='directory containing reduce output files. '
                     'If empty, will dump into work_dir')
-    ap.add_argument('--input_prefix', type=str, default='reduce.in',
+    ap.add_argument('--input_prefix', type=str, default=None,
                     help='string that input files are prefixed with')
     ap.add_argument('--glob_prefix', type=str, default=None,
                     help='string that input files are prefixed with '
