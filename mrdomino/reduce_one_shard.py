@@ -1,13 +1,10 @@
 import imp
 import json
-import re
 import sys
 from os.path import join as path_join
-from glob import glob
 from functools import partial
 from contextlib import nested as nested_context
-
-from mrdomino.util import MRCounter, MRFileInput
+from mrdomino.util import MRCounter
 
 
 def reduce(shard, args):
@@ -30,22 +27,7 @@ def reduce(shard, args):
     lines_seen_counter = "lines seen (step %d)" % args.step_idx
     lines_written_counter = "lines written (step %d)" % args.step_idx
 
-    if args.glob_prefix is not None:
-
-        # if glob_prefix is set, use it
-        files = glob(path_join(work_dir, args.glob_prefix + '.[0-9]*'))
-
-        # make sure that files are sorted by shard number
-        prefix_match = re.compile('.*\\b' + args.glob_prefix + '\.(\d+)$')
-        presorted = []
-        for fn in files:
-            match = prefix_match.match(fn)
-            if match is not None:
-                presorted.append((int(match.group(1)), fn))
-        files = [fn[1] for fn in sorted(presorted)]
-        input_stream = partial(MRFileInput, files, 'r')
-
-    elif args.input_prefix is not None:
+    if args.input_prefix is not None:
         # otherwise use input prefix
         in_f = path_join(work_dir, args.input_prefix + '.%d' % shard)
         input_stream = partial(open, in_f, 'r')

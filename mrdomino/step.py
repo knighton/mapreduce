@@ -1,10 +1,16 @@
 from argparse import ArgumentParser
 import imp
 import os
+import re
 import time
+from os.path import join as path_join
+from glob import glob
+from functools import partial
 from itertools import imap
+from contextlib import nested as nested_context
 from mrdomino import EXEC_SCRIPT, logger
-from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd
+from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd, \
+    MRFileInput
 
 
 def parse_args():
@@ -252,23 +258,24 @@ def main():
 
     if args.step_idx == args.total_steps - 1:
 
-        logger.info('Final reduce')
-        cmd = create_cmd('mrdomino.reduce_one_machine', {
-            'step_idx': args.step_idx,
-            'total_steps': args.total_steps,
-            'shards': '%s',
-            'n_shards': 1,
-            'reduce_module': args.reduce_module,
-            'reduce_func': args.reduce_func,
-            'glob_prefix': 'reduce.out',
-            'work_dir': work_dir,
-            'output_dir': args.output_dir
-        })
-        schedule_machines(
-            args,
-            command=cmd,
-            done_file_pattern=os.path.join(args.output_dir, 'reduce.done.%d'),
-            n_shards=1)
+        logger.info('Joining reduce outputs')
+
+        # make sure that files are sorted by shard number
+        glob_prefix = 'reduce.out'
+        files = glob(path_join(work_dir, glob_prefix + '.[0-9]*'))
+        prefix_match = re.compile('.*\\b' + glob_prefix + '\.(\d+)$')
+        presorted = []
+        for fn in files:
+            match = prefix_match.match(fn)
+            if match is not None:
+                presorted.append((int(match.group(1)), fn))
+        files = [fn[1] for fn in sorted(presorted)]
+        input_stream = partial(MRFileInput, files, 'r')
+        out_f = path_join(args.output_dir, 'reduce.out')
+        with nested_context(input_stream(), open(out_f, 'w')) as (in_fh,
+                                                                  out_fh):
+            for line in in_fh:
+                out_fh.write(line)
 
     # done.
     logger.info('Mapreduce step done.')
