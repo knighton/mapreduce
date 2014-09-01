@@ -198,22 +198,24 @@ def main():
 
     logger.info('Starting %d mappers.' % args.n_map_shards)
 
-    cmd_opts = {
-        'step_idx': args.step_idx,
-        'total_steps': args.total_steps,
-        'shards': '%s',
-        'n_shards': args.n_map_shards,
-        'input_files': ' '.join(args.input_files),
-        'map_module': args.map_module,
-        'map_func': args.map_func,
-        'work_dir': work_dir
-    }
+    # create map command
+    cmd_opts = [
+        'mrdomino.map_one_machine',
+        '--step_idx', args.step_idx,
+        '--total_steps', args.total_steps,
+        '--shards', '%s',
+        '--n_shards', args.n_map_shards,
+        '--input_files', ' '.join(args.input_files),
+        '--map_module', args.map_module,
+        '--map_func', args.map_func,
+        '--work_dir', work_dir
+    ]
     if args.combine_module is not None:
-        cmd_opts['combine_module'] = args.combine_module
+        cmd_opts.extend(['--combine_module', args.combine_module])
     if args.combine_func is not None:
-        cmd_opts['combine_func'] = args.combine_func
+        cmd_opts.extend(['--combine_func', args.combine_func])
+    cmd = create_cmd(cmd_opts)
 
-    cmd = create_cmd('mrdomino.map_one_machine', cmd_opts)
     schedule_machines(
         args,
         command=cmd,
@@ -226,26 +228,23 @@ def main():
 
     # shuffle mapper outputs to reducer inputs.
     logger.info('Shuffling data.')
-    cmd = create_cmd(EXEC_SCRIPT + ' mrdomino.shuffle', {
-        'work_dir': work_dir,
-        'input_prefix': 'map.out',
-        'output_prefix': 'reduce.in',
-        'n_reduce_shards': args.n_reduce_shards
-    })
+    cmd = create_cmd([EXEC_SCRIPT, 'mrdomino.shuffle',
+                      '--work_dir', work_dir,
+                      '--input_prefix', 'map.out',
+                      '--output_prefix', 'reduce.in',
+                      '--n_reduce_shards', args.n_reduce_shards])
     wait_cmd(cmd, logger, "Shuffling")
 
     logger.info('Starting %d reducers.' % args.n_reduce_shards)
-    cmd = create_cmd('mrdomino.reduce_one_machine', {
-        'step_idx': args.step_idx,
-        'total_steps': args.total_steps,
-        'shards': '%s',
-        'n_shards': args.n_reduce_shards,
-        'reduce_module': args.reduce_module,
-        'with_combiner': args.combine_func,
-        'input_prefix': 'reduce.in',
-        'reduce_func': args.reduce_func,
-        'work_dir': work_dir,
-    })
+    cmd = create_cmd(['mrdomino.reduce_one_machine',
+                      '--step_idx', args.step_idx,
+                      '--total_steps', args.total_steps,
+                      '--shards', '%s',
+                      '--n_shards', args.n_reduce_shards,
+                      '--reduce_module', args.reduce_module,
+                      '--input_prefix', 'reduce.in',
+                      '--reduce_func', args.reduce_func,
+                      '--work_dir', work_dir])
     schedule_machines(
         args,
         command=cmd,

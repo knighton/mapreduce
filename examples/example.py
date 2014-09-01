@@ -13,12 +13,20 @@ def map1(_, line, increment_counter):
     yield key, 1
 
 
+def combine1(key, vals):
+    yield key, sum(vals)
+
+
 def reduce1(key, vals, increment_counter):
     total = sum(vals)
     uname, domain = key.split("@")
     tld = re.match(r'^.*\b([^\.]+\.[^\.]+)$', domain).group(1)
     increment_counter("TLD reduce1", tld, total)
     yield key, total    # username -> count of posts
+
+
+def combine2(key, vals):
+    yield key, sum(vals)
 
 
 def map2(key, val, increment_counter):
@@ -40,12 +48,14 @@ def main():
         {
             'mapper': map1,
             'n_mappers': 2,
+            'combiner': combine1,
             'reducer': reduce1,
             'n_reducers': 3,
         },
         {
             'mapper': map2,
             'n_mappers': 5,
+            'combiner': combine2,
             'reducer': reduce2,
             'n_reducers': 4,
         }
