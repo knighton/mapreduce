@@ -16,10 +16,12 @@ def parse_args():
     ap.add_argument('--work_dir', type=str, required=True,
                     help='temporary working directory')
 
-    ap.add_argument('--map_module', type=str)
-    ap.add_argument('--map_func', type=str)
-    ap.add_argument('--reduce_module', type=str)
-    ap.add_argument('--reduce_func', type=str)
+    ap.add_argument('--map_module', type=str, required=True)
+    ap.add_argument('--map_func', type=str, required=True)
+    ap.add_argument('--reduce_module', type=str, required=True)
+    ap.add_argument('--reduce_func', type=str, required=True)
+    ap.add_argument('--combine_module', type=str, required=False, default=None)
+    ap.add_argument('--combine_func', type=str, required=False, default=None)
 
     ap.add_argument('--n_map_shards', type=int,
                     help='number of map shards')
@@ -189,7 +191,8 @@ def main():
     logger.info('Working directory: %s' % work_dir)
 
     logger.info('Starting %d mappers.' % args.n_map_shards)
-    cmd = create_cmd('mrdomino.map_one_machine', {
+
+    cmd_opts = {
         'step_idx': args.step_idx,
         'total_steps': args.total_steps,
         'shards': '%s',
@@ -198,7 +201,13 @@ def main():
         'map_module': args.map_module,
         'map_func': args.map_func,
         'work_dir': work_dir
-    })
+    }
+    if args.combine_module is not None:
+        cmd_opts['combine_module'] = args.combine_module
+    if args.combine_func is not None:
+        cmd_opts['combine_func'] = args.combine_func
+
+    cmd = create_cmd('mrdomino.map_one_machine', cmd_opts)
     schedule_machines(
         args,
         command=cmd,
@@ -226,6 +235,7 @@ def main():
         'shards': '%s',
         'n_shards': args.n_reduce_shards,
         'reduce_module': args.reduce_module,
+        'with_combiner': args.combine_func,
         'input_prefix': 'reduce.in',
         'reduce_func': args.reduce_func,
         'work_dir': work_dir,

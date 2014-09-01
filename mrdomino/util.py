@@ -128,8 +128,14 @@ def create_cmd(prefix, opts=None):
     if opts is None:
         return prefix
 
-    suffix = ' '.join('--{} {}'.format(k, v) for k, v in opts.iteritems())
-    return prefix + ' ' + suffix
+    parsed_opts = [prefix]
+    for k, v in opts.iteritems():
+        # if value is None, consider this a boolean option to set
+        opt = '--{}'.format(k) \
+            if v is None \
+            else '--{} {}'.format(k, v)
+        parsed_opts.append(opt)
+    return ' '.join(parsed_opts)
 
 
 def read_files(filenames):

@@ -40,7 +40,7 @@ def mapreduce(steps, settings):
         os.makedirs(output_dir)
 
     for i, step in enumerate(steps):
-        cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.step', {
+        cmd_opts = {
             'step_idx': i,
             'total_steps': step_count,
             'input_files': ' '.join(input_file_lists[i]),
@@ -55,6 +55,14 @@ def mapreduce(steps, settings):
             'use_domino': int(settings['use_domino']),
             'n_concurrent_machines': settings['n_concurrent_machines'],
             'n_shards_per_machine': settings['n_shards_per_machine']
-        })
+        }
+
+        # combiner is optional
+        combiner = step.get('combiner')
+        if combiner is not None:
+            cmd_opts['combine_func'] = combiner.func_name
+            cmd_opts['combine_module'] = combiner.func_globals['__file__']
+
+        cmd = util.create_cmd(EXEC_SCRIPT + ' mrdomino.step', cmd_opts)
         util.wait_cmd(cmd, logger, "Step %d" % i)
     logger.info('All done.')
