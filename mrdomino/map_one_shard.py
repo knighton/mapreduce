@@ -1,10 +1,11 @@
 import imp
 import json
 import math
-import os
 import itertools
-
+from os.path import join as path_join
+from subprocess import Popen, PIPE
 from mrdomino.util import MRCounter
+from mrdomino import logger
 
 
 def each_input_line(input_files, shard, n_shards):
@@ -40,35 +41,41 @@ def map(shard, args):
     # the counters.
     counters = MRCounter()
 
-    # process each line of input.
+    # process each line of input and sort for the merge step.
     count = 0
-    out_fn = os.path.join(args.work_dir, args.output_prefix + '.%d' % shard)
+    out_fn = path_join(args.work_dir, args.output_prefix + '.%d' % shard)
+    p = Popen(['sort', '-o', out_fn], stdin=PIPE, stdout=PIPE, stderr=PIPE,
+              bufsize=4096)
     lines_seen_counter = "lines seen (step %d)" % args.step_idx
     lines_written_counter = "lines written (step %d)" % args.step_idx
     unpack_tuple = args.step_idx > 0
-    with open(out_fn, 'w') as out_f:
-        for line in each_input_line(args.input_files, shard, args.n_shards):
-            k, v = json.loads(line) if unpack_tuple else (None, line)
-            counters.incr(lines_seen_counter, "map", 1)
-            for kv in map_func(k, v, counters.incr):
-                counters.incr(lines_written_counter, "map", 1)
-                out_f.write(json.dumps(kv) + '\n')
-                count += 1
+
+    for line in each_input_line(args.input_files, shard, args.n_shards):
+        k, v = json.loads(line) if unpack_tuple else (None, line)
+        counters.incr(lines_seen_counter, "map", 1)
+        for kv in map_func(k, v, counters.incr):
+            counters.incr(lines_written_counter, "map", 1)
+            p.stdin.write(json.dumps(kv) + '\n')
+            count += 1
 
     # write out the counters to file.
-    f = os.path.join(args.work_dir, 'map.counters.%d' % shard)
+    f = path_join(args.work_dir, 'map.counters.%d' % shard)
     with open(f, 'w') as fh:
         fh.write(counters.serialize())
 
     # write how many entries were written for reducer balancing purposes.
-    f = os.path.join(args.work_dir, args.output_prefix + '_count.%d' % shard)
+    f = path_join(args.work_dir, args.output_prefix + '_count.%d' % shard)
     with open(f, 'w') as fh:
         fh.write(str(count))
 
-    # sort the results for merge step.
-    os.system('sort %s -o %s' % (out_fn, out_fn))
+    # `communicate' will wait for subprocess to terminate
+    p_stdout, p_stderr = p.communicate(input=None)
+    if p_stdout is not None and p_stdout != '':
+        logger.info(p_stdout)
+    if p_stderr is not None and p_stderr != '':
+        logger.warn(p_stderr)
 
     # finally note that we are done.
-    f = os.path.join(args.work_dir, 'map.done.%d' % shard)
+    f = path_join(args.work_dir, 'map.done.%d' % shard)
     with open(f, 'w') as fh:
         fh.write('')

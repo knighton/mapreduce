@@ -1,10 +1,16 @@
 from argparse import ArgumentParser
 import imp
 import os
+import re
 import time
+from os.path import join as path_join
+from glob import glob
+from functools import partial
 from itertools import imap
+from contextlib import nested as nested_context
 from mrdomino import EXEC_SCRIPT, logger
-from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd
+from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd, \
+    MRFileInput
 
 
 def parse_args():
@@ -16,10 +22,12 @@ def parse_args():
     ap.add_argument('--work_dir', type=str, required=True,
                     help='temporary working directory')
 
-    ap.add_argument('--map_module', type=str)
-    ap.add_argument('--map_func', type=str)
-    ap.add_argument('--reduce_module', type=str)
-    ap.add_argument('--reduce_func', type=str)
+    ap.add_argument('--map_module', type=str, required=True)
+    ap.add_argument('--map_func', type=str, required=True)
+    ap.add_argument('--reduce_module', type=str, required=True)
+    ap.add_argument('--reduce_func', type=str, required=True)
+    ap.add_argument('--combine_module', type=str, required=False, default=None)
+    ap.add_argument('--combine_func', type=str, required=False, default=None)
 
     ap.add_argument('--n_map_shards', type=int,
                     help='number of map shards')
@@ -127,7 +135,7 @@ def show_shard_state(shard2state, n_shards_per_machine):
     for i in range(0, len(shards), n_shards_per_machine):
         machine_shards = shards[i:i + n_shards_per_machine]
         output.append('%s' % map(lambda i: shard2state[i], machine_shards))
-    return '\n'.join(output)
+    return ' '.join(output)
 
 
 def schedule_machines(args, command, done_file_pattern, n_shards):
@@ -167,6 +175,7 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
             # execute command.
             s = command % ','.join(map(str, shards))
             s = wrap_cmd(s, args.use_domino)
+            logger.info("Starting process: {}".format(s))
             os.system(s)
 
             # note them as started.
@@ -188,7 +197,8 @@ def main():
     logger.info('Working directory: %s' % work_dir)
 
     logger.info('Starting %d mappers.' % args.n_map_shards)
-    cmd = create_cmd('mrdomino.map_one_machine', {
+
+    cmd_opts = {
         'step_idx': args.step_idx,
         'total_steps': args.total_steps,
         'shards': '%s',
@@ -197,7 +207,13 @@ def main():
         'map_module': args.map_module,
         'map_func': args.map_func,
         'work_dir': work_dir
-    })
+    }
+    if args.combine_module is not None:
+        cmd_opts['combine_module'] = args.combine_module
+    if args.combine_func is not None:
+        cmd_opts['combine_func'] = args.combine_func
+
+    cmd = create_cmd('mrdomino.map_one_machine', cmd_opts)
     schedule_machines(
         args,
         command=cmd,
@@ -225,6 +241,8 @@ def main():
         'shards': '%s',
         'n_shards': args.n_reduce_shards,
         'reduce_module': args.reduce_module,
+        'with_combiner': args.combine_func,
+        'input_prefix': 'reduce.in',
         'reduce_func': args.reduce_func,
         'work_dir': work_dir,
     })
@@ -240,23 +258,24 @@ def main():
 
     if args.step_idx == args.total_steps - 1:
 
-        logger.info('Final reduce')
-        cmd = create_cmd('mrdomino.reduce_one_machine', {
-            'step_idx': args.step_idx,
-            'total_steps': args.total_steps,
-            'shards': '%s',
-            'n_shards': 1,
-            'reduce_module': args.reduce_module,
-            'reduce_func': args.reduce_func,
-            'glob_prefix': 'reduce.out',
-            'work_dir': work_dir,
-            'output_dir': args.output_dir
-        })
-        schedule_machines(
-            args,
-            command=cmd,
-            done_file_pattern=os.path.join(args.output_dir, 'reduce.done.%d'),
-            n_shards=1)
+        logger.info('Joining reduce outputs')
+
+        # make sure that files are sorted by shard number
+        glob_prefix = 'reduce.out'
+        files = glob(path_join(work_dir, glob_prefix + '.[0-9]*'))
+        prefix_match = re.compile('.*\\b' + glob_prefix + '\.(\d+)$')
+        presorted = []
+        for fn in files:
+            match = prefix_match.match(fn)
+            if match is not None:
+                presorted.append((int(match.group(1)), fn))
+        files = [fn[1] for fn in sorted(presorted)]
+        input_stream = partial(MRFileInput, files, 'r')
+        out_f = path_join(args.output_dir, 'reduce.out')
+        with nested_context(input_stream(), open(out_f, 'w')) as (in_fh,
+                                                                  out_fh):
+            for line in in_fh:
+                out_fh.write(line)
 
     # done.
     logger.info('Mapreduce step done.')

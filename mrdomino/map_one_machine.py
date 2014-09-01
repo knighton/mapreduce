@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from multiprocessing import Pool
 from mrdomino import map_one_shard, logger
+from mrdomino.util import MRTimer
 
 
 def parse_args():
@@ -15,10 +16,14 @@ def parse_args():
                     help='out of how many shards')
     ap.add_argument('--input_files', type=str, nargs='+',
                     help='input files')
-    ap.add_argument('--map_module', type=str,
+    ap.add_argument('--map_module', type=str, required=True,
                     help='path to module containing mapper')
-    ap.add_argument('--map_func', type=str,
+    ap.add_argument('--map_func', type=str, required=True,
                     help='mapper function name')
+    ap.add_argument('--combine_module', type=str, required=False,
+                    help='path to module containing combiner')
+    ap.add_argument('--combine_func', type=str, required=False,
+                    help='combiner function name')
     ap.add_argument('--work_dir', type=str,
                     help='directory containing map output files')
     ap.add_argument('--output_prefix', type=str, default='map.out',
@@ -31,14 +36,17 @@ def do_shard(t):
 
     # unwrap argument
     args, shard = t
-    map_one_shard.map(shard, args)
+
+    with MRTimer() as timer:
+        map_one_shard.map(shard, args)
+    logger.info("Shard {} mapped: {}".format(shard, str(timer)))
 
 
 def main():
     args = parse_args()
 
     shards = map(int, args.shards.split(','))
-    logger.info("Scheduling shards %s" % shards)
+    logger.info("Scheduling shards {} on one mapper node".format(shards))
     pool = Pool(processes=len(shards))
 
     # Note: wrapping arguments to do_shard into a tuple since multiprocessing

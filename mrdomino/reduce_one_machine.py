@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from multiprocessing import Pool
 from mrdomino import reduce_one_shard, logger
+from mrdomino.util import MRTimer
 
 
 def parse_args():
@@ -17,12 +18,14 @@ def parse_args():
                     help='path to module containing reducer')
     ap.add_argument('--reduce_func', type=str,
                     help='reduce function name')
+    ap.add_argument('--with_combiner', action='store_true',
+                    help='whether the mapper had used a combiner')
     ap.add_argument('--work_dir', type=str, required=True,
                     help='directory containing reduce input files')
     ap.add_argument('--output_dir', type=str, default=None,
                     help='directory containing reduce output files. '
                     'If empty, will dump into work_dir')
-    ap.add_argument('--input_prefix', type=str, default='reduce.in',
+    ap.add_argument('--input_prefix', type=str, default=None,
                     help='string that input files are prefixed with')
     ap.add_argument('--glob_prefix', type=str, default=None,
                     help='string that input files are prefixed with '
@@ -38,16 +41,17 @@ def do_shard(t):
 
     # unwrap argument
     args, shard = t
-    reduce_one_shard.reduce(shard, args)
+
+    with MRTimer() as timer:
+        reduce_one_shard.reduce(shard, args)
+    logger.info("Shard {} reduced: {}".format(shard, str(timer)))
 
 
 def main():
     args = parse_args()
 
     shards = map(int, args.shards.split(','))
-    logger.info(
-        "Scheduling shards %s for system-level parallel reduce processing" %
-        shards)
+    logger.info("Scheduling shards {} on one reducer node".format(shards))
     pool = Pool(processes=len(shards))
 
     # Note: wrapping arguments to do_shard into a tuple since multiprocessing
