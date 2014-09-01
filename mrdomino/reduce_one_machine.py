@@ -18,8 +18,6 @@ def parse_args():
                     help='path to module containing reducer')
     ap.add_argument('--reduce_func', type=str,
                     help='reduce function name')
-    ap.add_argument('--with_combiner', action='store_true',
-                    help='whether the mapper had used a combiner')
     ap.add_argument('--work_dir', type=str, required=True,
                     help='directory containing reduce input files')
     ap.add_argument('--output_dir', type=str, default=None,

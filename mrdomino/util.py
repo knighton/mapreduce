@@ -124,18 +124,15 @@ def wait_cmd(cmd, logger, name="Command"):
     return retcode
 
 
-def create_cmd(prefix, opts=None):
-    if opts is None:
-        return prefix
+def create_cmd(parts):
 
-    parsed_opts = [prefix]
-    for k, v in opts.iteritems():
-        # if value is None, consider this a boolean option to set
-        opt = '--{}'.format(k) \
-            if v is None \
-            else '--{} {}'.format(k, v)
-        parsed_opts.append(opt)
-    return ' '.join(parsed_opts)
+    sane_parts = []
+    for part in parts:
+        if not isinstance(part, str):
+            part = str(part)
+        sane_parts.append(part)
+
+    return ' '.join(sane_parts)
 
 
 def read_files(filenames):
