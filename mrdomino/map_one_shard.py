@@ -4,7 +4,7 @@ import math
 import itertools
 from os.path import join as path_join
 from subprocess import Popen, PIPE
-from mrdomino import EXEC_SCRIPT, logger
+from mrdomino import logger
 from mrdomino.util import MRCounter
 
 
@@ -50,7 +50,7 @@ def map(shard, args):
         proc = proc_sort
     else:
         f = path_join(args.work_dir, 'combine.counters.%d' % shard)
-        proc_combine = Popen([EXEC_SCRIPT, 'mrdomino.combine',
+        proc_combine = Popen(['python', '-m', 'mrdomino.combine',
                               '--combine_module', args.combine_module,
                               '--combine_func', args.combine_func,
                               '--output', out_fn,

@@ -62,8 +62,8 @@ def main():
             mapper=map2,
             combiner=combine2,
             reducer=reduce2,
-            n_mappers=5,
-            n_reducers=4
+            n_mappers=3,
+            n_reducers=2
         )
     ]
     settings = MRSettings(
