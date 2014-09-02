@@ -5,6 +5,8 @@ Implementation of mapreduce to run on http://dominoup.com.
 
 Example usage (see complete example at examples/example.py):
 
+    from mrdomino import mapreduce, MRStep, MRSettings
+
     steps = [
         MRStep(
             mapper=map1,
