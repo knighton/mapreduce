@@ -55,14 +55,14 @@ def main():
             mapper=map1,
             combiner=combine1,
             reducer=reduce1,
-            n_mappers=2,
+            n_mappers=6,
             n_reducers=3
         ),
         MRStep(
             mapper=map2,
             combiner=combine2,
             reducer=reduce2,
-            n_mappers=3,
+            n_mappers=4,
             n_reducers=2
         )
     ]
