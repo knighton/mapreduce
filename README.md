@@ -24,7 +24,7 @@ Example usage (see complete example at examples/example.py):
         )
     ]
     settings = MRSettings(
-        input_files=glob.glob('data/short.*'),
+        input_files=glob.glob('data/*.gz'),
         output_dir='out',
         tmp_dir='tmp',
         use_domino=False,
