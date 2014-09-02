@@ -17,8 +17,9 @@ def map1(_, line, increment_counter):
     yield key, 1
 
 
-def combine1(key, vals):
-    yield key, sum(vals)
+def combine1(key, vals, increment_counter):
+    total = sum(vals)
+    yield key, total
 
 
 def reduce1(key, vals, increment_counter):
@@ -29,8 +30,9 @@ def reduce1(key, vals, increment_counter):
     yield key, total    # username -> count of posts
 
 
-def combine2(key, vals):
-    yield key, sum(vals)
+def combine2(key, vals, increment_counter):
+    total = sum(vals)
+    yield key, total
 
 
 def map2(key, val, increment_counter):
