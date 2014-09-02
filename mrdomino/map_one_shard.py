@@ -4,7 +4,7 @@ import math
 import itertools
 from os.path import join as path_join
 from subprocess import Popen, PIPE
-from mrdomino import EXEC_SCRIPT
+from mrdomino import EXEC_SCRIPT, logger
 from mrdomino.util import MRCounter
 
 
@@ -49,17 +49,17 @@ def map(shard, args):
         proc_sort = Popen(['sort', '-o', out_fn], bufsize=4096, stdin=PIPE)
         proc = proc_sort
     else:
+        f = path_join(args.work_dir, 'combine.counters.%d' % shard)
         proc_combine = Popen([EXEC_SCRIPT, 'mrdomino.combine',
                               '--combine_module', args.combine_module,
                               '--combine_func', args.combine_func,
-                              '--output', out_fn],
+                              '--output', out_fn,
+                              '--counters', f],
                              bufsize=4096, stdin=PIPE)
         proc_sort = Popen(['sort'], bufsize=4096,
                           stdin=PIPE, stdout=proc_combine.stdin)
         proc = proc_combine
 
-    lines_seen_counter = "lines seen (step %d)" % args.step_idx
-    lines_written_counter = "lines written (step %d)" % args.step_idx
     unpack_tuple = args.step_idx > 0
 
     # using with block here ensures that proc_sort.stdin is closed on exit and
@@ -67,14 +67,15 @@ def map(shard, args):
     with proc_sort.stdin as in_fh:
         for line in each_input_line(args.input_files, shard, args.n_shards):
             k, v = json.loads(line) if unpack_tuple else (None, line)
-            counters.incr(lines_seen_counter, "map", 1)
+            counters.incr("mapper", "seen", 1)
             for kv in map_func(k, v, counters.incr):
-                counters.incr(lines_written_counter, "map", 1)
+                counters.incr("mapper", "written", 1)
                 in_fh.write(json.dumps(kv) + '\n')
                 count += 1
 
     # write out the counters to file.
     f = path_join(args.work_dir, 'map.counters.%d' % shard)
+    logger.info("writing counters to disk at {}".format(f))
     with open(f, 'w') as fh:
         fh.write(counters.serialize())
 

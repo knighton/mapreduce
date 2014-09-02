@@ -75,6 +75,9 @@ def combine_counters(work_dir, n_map_shards, n_reduce_shards):
              os.path.join(work_dir, 'map.counters.%d' % shard),
              zip([work_dir] * n_map_shards, range(n_map_shards)))
     ff += map(lambda (work_dir, shard):
+              os.path.join(work_dir, 'combine.counters.%d' % shard),
+              zip([work_dir] * n_map_shards, range(n_map_shards)))
+    ff += map(lambda (work_dir, shard):
               os.path.join(work_dir, 'reduce.counters.%d' % shard),
               zip([work_dir] * n_reduce_shards, range(n_reduce_shards)))
     return MRCounter.sum(
