@@ -24,7 +24,19 @@ class MRCounter(collections.Iterable):
         self.counter[key][sub_key] += incr
 
     def __iadd__(self, d):
-        """Add another counter (allows += operator)"""
+        """Add another counter (allows += operator)
+
+        >>> c = MRCounter()
+        >>> c.incr("a", "b", 2)
+        >>> c.incr("b", "c", 3)
+        >>> d = MRCounter()
+        >>> d.incr("c", "b", 2)
+        >>> d.incr("b", "c", 30)
+        >>> d += c
+        >>> d.counter['b']['c']
+        33
+
+        """
         counter = self.counter
         for key, val in d.iteritems():
             counter[key].update(val)
@@ -39,6 +51,14 @@ class MRCounter(collections.Iterable):
         return '\n'.join(output)
 
     def serialize(self):
+        """
+        >>> c = MRCounter()
+        >>> c.incr("a", "b", 2)
+        >>> c.incr("b", "c", 3)
+        >>> type(c.serialize())
+        <type 'str'>
+
+        """
         arr = []
         for key, sub_dict in sorted(self.iteritems()):
             for sub_key, count in sorted(sub_dict.iteritems()):
@@ -61,6 +81,7 @@ class MRCounter(collections.Iterable):
         >>> d = MRCounter.deserialize(c.serialize())
         >>> c.counter == d.counter
         True
+
         """
         r = MRCounter()
         j = json.loads(s)
@@ -73,7 +94,19 @@ class MRCounter(collections.Iterable):
 
     @classmethod
     def sum(cls, iterable):
-        """Sum a series of instances of cls"""
+        """Sum a series of instances of cls
+
+        >>> c = MRCounter()
+        >>> c.incr("a", "b", 2)
+        >>> c.incr("b", "c", 3)
+        >>> d = MRCounter()
+        >>> d.incr("c", "b", 2)
+        >>> d.incr("b", "c", 30)
+        >>> e = MRCounter.sum([c, d])
+        >>> e.counter['b']['c']
+        33
+
+        """
         return reduce(operator.__iadd__, iterable, cls())
 
 
