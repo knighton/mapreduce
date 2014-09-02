@@ -150,6 +150,8 @@ def create_cmd(parts):
     sane_parts = []
     for part in parts:
         if not isinstance(part, str):
+            # note: python subprocess module raises a TypeError instead
+            # of converting everything to string
             part = str(part)
         sane_parts.append(part)
 

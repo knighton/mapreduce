@@ -24,7 +24,8 @@ def reduce(shard, args):
         output_dir = work_dir
 
     # process each (key, value) pair.
-    out_f = path_join(output_dir, args.output_prefix + '.%d' % shard)
+    out_fn = path_join(output_dir, args.output_prefix + '.%d' % shard)
+    logger.info("reducer output -> {}".format(out_fn))
 
     if args.input_prefix is not None:
         # otherwise use input prefix
@@ -35,11 +36,13 @@ def reduce(shard, args):
         # otherwise use stdin
         input_stream = sys.stdin
 
-    with nested_context(input_stream(), open(out_f, 'w')) as (in_fh, out_fh):
+    count_written = 0
+    count_seen = 0
+    with nested_context(input_stream(), open(out_fn, 'w')) as (in_fh, out_fh):
         last_key = None
         values = []
         for line in in_fh:
-            counters.incr("reducer", "seen", 1)
+            count_seen += 1
             key, value = json.loads(line)
             if key == last_key:
                 # extend previous run
@@ -48,7 +51,7 @@ def reduce(shard, args):
                 # end previous run
                 if values:
                     for kv in reduce_func(last_key, values, counters.incr):
-                        counters.incr("reducer", "written", 1)
+                        count_written += 1
                         out_fh.write(json.dumps(kv) + '\n')
 
                 # start new run
@@ -57,12 +60,15 @@ def reduce(shard, args):
         # dump any remaining values
         if values:
             for kv in reduce_func(last_key, values, counters.incr):
-                counters.incr("reducer", "written", 1)
+                count_written += 1
                 out_fh.write(json.dumps(kv) + '\n')
+
+    counters.incr("reducer", "seen", count_seen)
+    counters.incr("reducer", "written", count_written)
 
     # write out the counters to file.
     f = path_join(output_dir, 'reduce.counters.%d' % shard)
-    logger.info("writing counters to {}".format(f))
+    logger.info("reducer counters -> {}".format(f))
     with open(f, 'w') as fh:
         fh.write(counters.serialize())
 

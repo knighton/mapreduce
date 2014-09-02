@@ -24,7 +24,7 @@ def parse_args():
                     help='path to module containing combiner')
     ap.add_argument('--combine_func', type=str, required=False,
                     help='combiner function name')
-    ap.add_argument('--work_dir', type=str,
+    ap.add_argument('--work_dir', type=str, required=True,
                     help='directory containing map output files')
     ap.add_argument('--output_prefix', type=str, default='map.out',
                     help='string to prefix output files')
