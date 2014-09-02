@@ -1,6 +1,8 @@
 import collections
 import json
 import time
+import gzip
+import re
 import subprocess
 import operator
 import functools
@@ -163,6 +165,16 @@ def read_files(filenames):
     for f in filenames:
         with open(f, 'r') as fh:
             yield fh.read()
+
+
+def open_input(filename, mode='r'):
+    """Transparently open input files, whether plain text or gzip"""
+    if re.match('.*\.gz$', filename) is None:
+        # no .gz extension, assume a plain text file
+        return open(filename, mode)
+    else:
+        # got a gzipped file
+        return gzip.open(filename, mode + 'b')
 
 
 if __name__ == "__main__":

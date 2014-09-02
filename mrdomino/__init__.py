@@ -93,6 +93,8 @@ def mapreduce(steps, settings):
         ff = [reduce_format % n for n in range(n_reducers)]
         input_file_lists.append(ff)
 
+    logger.info("Input files: {}".format(input_file_lists))
+
     # if output directory root does not exist, create one
     output_dir = settings.output_dir
     if not os.path.exists(output_dir):

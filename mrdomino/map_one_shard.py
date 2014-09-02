@@ -5,7 +5,7 @@ import itertools
 from os.path import join as path_join
 from subprocess import Popen, PIPE
 from mrdomino import logger
-from mrdomino.util import MRCounter, create_cmd
+from mrdomino.util import MRCounter, create_cmd, open_input
 
 
 def each_input_line(input_files, shard, n_shards):
@@ -25,7 +25,7 @@ def each_input_line(input_files, shard, n_shards):
         zz = n_shards * (i + 1)
         assign = slice_assignments[aa:zz]
         inf_gen = itertools.cycle(range(n_shards))
-        with open(input_files[i], 'r') as fh:
+        with open_input(input_files[i], 'r') as fh:
             for j, line in itertools.izip(inf_gen, fh):
                 if shard == assign[j]:
                     yield line
