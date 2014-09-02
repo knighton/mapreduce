@@ -5,12 +5,9 @@ import re
 import time
 from os.path import join as path_join
 from glob import glob
-from functools import partial
 from itertools import imap
-from contextlib import nested as nested_context
 from mrdomino import EXEC_SCRIPT, logger
-from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd, \
-    MRFileInput
+from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd
 
 
 def parse_args():
@@ -272,11 +269,9 @@ def main():
             if match is not None:
                 presorted.append((int(match.group(1)), fn))
         files = [fn[1] for fn in sorted(presorted)]
-        input_stream = partial(MRFileInput, files, 'r')
         out_f = path_join(args.output_dir, 'reduce.out')
-        with nested_context(input_stream(), open(out_f, 'w')) as (in_fh,
-                                                                  out_fh):
-            for line in in_fh:
+        with open(out_f, 'w') as out_fh:
+            for line in read_files(files):
                 out_fh.write(line)
 
     # done.

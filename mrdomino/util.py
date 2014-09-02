@@ -4,13 +4,14 @@ import time
 import subprocess
 import operator
 import functools
-import fileinput
 
 
 NestedCounter = functools.partial(collections.defaultdict, collections.Counter)
 
 
 class MRCounter(collections.Iterable):
+    """Two-story counter
+    """
     def __init__(self):
         self.counter = NestedCounter()
 
@@ -111,6 +112,7 @@ class MRCounter(collections.Iterable):
 
 
 class MRTimer(object):
+    """Context class for benchmarking"""
     def __enter__(self):
         self.clock_start = time.clock()
         self.wall_start = time.time()
@@ -127,22 +129,8 @@ class MRTimer(object):
             % (self.clock_interval, self.wall_interval)
 
 
-class MRFileInput(object):
-    """Emulates context behavior of fileinput in Python 3"""
-
-    def __init__(self, files, mode='r'):
-        self.files = files
-        self.mode = mode
-
-    def __enter__(self):
-        self.fh = fileinput.input(self.files, mode=self.mode)
-        return self.fh
-
-    def __exit__(self, *args):
-        self.fh.close()
-
-
 def wait_cmd(cmd, logger, name="Command"):
+    """Execute command and wait for it to finish"""
     try:
         with MRTimer() as t:
             retcode = subprocess.call(cmd, shell=True)
@@ -158,7 +146,7 @@ def wait_cmd(cmd, logger, name="Command"):
 
 
 def create_cmd(parts):
-
+    """Join together a command line represented as list"""
     sane_parts = []
     for part in parts:
         if not isinstance(part, str):
@@ -169,6 +157,7 @@ def create_cmd(parts):
 
 
 def read_files(filenames):
+    """Returns an iterator over lines in a list of files"""
     for f in filenames:
         with open(f, 'r') as fh:
             yield fh.read()

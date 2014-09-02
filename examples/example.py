@@ -67,7 +67,7 @@ def main():
         )
     ]
     settings = MRSettings(
-        input_files=glob.glob('./data/2014-01-18.detail.10000'),
+        input_files=glob.glob('./data/2014-01-18.detail.100000'),
         output_dir='out',
         tmp_dir='tmp',
         use_domino=False,

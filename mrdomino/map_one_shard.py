@@ -75,7 +75,7 @@ def map(shard, args):
 
     # write out the counters to file.
     f = path_join(args.work_dir, 'map.counters.%d' % shard)
-    logger.info("writing counters to disk at {}".format(f))
+    logger.info("writing counters to {}".format(f))
     with open(f, 'w') as fh:
         fh.write(counters.serialize())
 

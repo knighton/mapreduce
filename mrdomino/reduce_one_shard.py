@@ -62,7 +62,7 @@ def reduce(shard, args):
 
     # write out the counters to file.
     f = path_join(output_dir, 'reduce.counters.%d' % shard)
-    logger.info("writing counters to disk at {}".format(f))
+    logger.info("writing counters to {}".format(f))
     with open(f, 'w') as fh:
         fh.write(counters.serialize())
 

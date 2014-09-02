@@ -61,7 +61,7 @@ def main():
 
     # write out the counters to file.
     if args.counters is not None:
-        logger.info("writing counters to disk at {}".format(args.counters))
+        logger.info("writing counters to {}".format(args.counters))
         with open(args.counters, 'w') as fh:
             fh.write(counters.serialize())
 
