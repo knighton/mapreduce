@@ -1,12 +1,11 @@
 from argparse import ArgumentParser
-import imp
 import os
 import re
 import time
 from os.path import join as path_join
 from glob import glob
 from itertools import imap
-from mrdomino import EXEC_SCRIPT, logger
+from mrdomino import EXEC_SCRIPT, logger, get_step
 from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd
 
 
@@ -18,19 +17,8 @@ def parse_args():
                     help='directory to write output files to')
     ap.add_argument('--work_dir', type=str, required=True,
                     help='temporary working directory')
-
-    ap.add_argument('--map_module', type=str, required=True)
-    ap.add_argument('--map_func', type=str, required=True)
-    ap.add_argument('--reduce_module', type=str, required=True)
-    ap.add_argument('--reduce_func', type=str, required=True)
-    ap.add_argument('--combine_module', type=str, required=False, default=None)
-    ap.add_argument('--combine_func', type=str, required=False, default=None)
-
-    ap.add_argument('--n_map_shards', type=int,
-                    help='number of map shards')
-    ap.add_argument('--n_reduce_shards', type=int, default=10,
-                    help='number of reduce shards')
-
+    ap.add_argument('--job_module', type=str, required=True)
+    ap.add_argument('--job_class', type=str, required=True)
     ap.add_argument('--step_idx', type=int, required=True,
                     help='Index of this step (zero-base)')
     ap.add_argument('--total_steps', type=int, required=True,
@@ -48,15 +36,10 @@ def parse_args():
 
     args = ap.parse_args()
 
-    # verify that we have input for each mapper.
-    if args.n_map_shards is None:
-        args.n_map_shards = len(args.input_files)
-
-    # verify functions exist.
-    module = imp.load_source('module', args.map_module)
-    getattr(module, args.map_func)
-    module = imp.load_source('module', args.reduce_module)
-    getattr(module, args.reduce_func)
+    ## verify functions exist.
+    step = get_step(args)
+    assert step.mapper is not None
+    assert step.reducer is not None
 
     return args
 
@@ -196,7 +179,8 @@ def main():
     work_dir = args.work_dir
     logger.info('Working directory: %s' % work_dir)
 
-    logger.info('Starting %d mappers.' % args.n_map_shards)
+    step = get_step(args)
+    logger.info('Starting %d mappers.' % step.n_mappers)
 
     # create map command
     cmd_opts = [
@@ -204,26 +188,21 @@ def main():
         '--step_idx', args.step_idx,
         '--total_steps', args.total_steps,
         '--shards', '%s',
-        '--n_shards', args.n_map_shards,
         '--input_files', ' '.join(args.input_files),
-        '--map_module', args.map_module,
-        '--map_func', args.map_func,
+        '--job_module', args.job_module,
+        '--job_class', args.job_class,
         '--work_dir', work_dir
     ]
-    if args.combine_module is not None:
-        cmd_opts.extend(['--combine_module', args.combine_module])
-    if args.combine_func is not None:
-        cmd_opts.extend(['--combine_func', args.combine_func])
     cmd = create_cmd(cmd_opts)
 
     schedule_machines(
         args,
         command=cmd,
         done_file_pattern=os.path.join(work_dir, 'map.done.%d'),
-        n_shards=args.n_map_shards)
+        n_shards=step.n_mappers)
 
     counter = combine_counters(
-        work_dir, args.n_map_shards, args.n_reduce_shards)
+        work_dir, step.n_mappers, step.n_reducers)
     logger.info(counter.show())
 
     # shuffle mapper outputs to reducer inputs.
@@ -232,27 +211,28 @@ def main():
                       '--work_dir', work_dir,
                       '--input_prefix', 'map.out',
                       '--output_prefix', 'reduce.in',
-                      '--n_reduce_shards', args.n_reduce_shards])
+                      '--job_module', args.job_module,
+                      '--job_class', args.job_class,
+                      '--step_idx', args.step_idx])
     wait_cmd(cmd, logger, "Shuffling")
 
-    logger.info('Starting %d reducers.' % args.n_reduce_shards)
+    logger.info('Starting %d reducers.' % step.n_reducers)
     cmd = create_cmd(['mrdomino.reduce_one_machine',
                       '--step_idx', args.step_idx,
                       '--total_steps', args.total_steps,
                       '--shards', '%s',
-                      '--n_shards', args.n_reduce_shards,
-                      '--reduce_module', args.reduce_module,
+                      '--job_module', args.job_module,
+                      '--job_class', args.job_class,
                       '--input_prefix', 'reduce.in',
-                      '--reduce_func', args.reduce_func,
                       '--work_dir', work_dir])
     schedule_machines(
         args,
         command=cmd,
         done_file_pattern=os.path.join(work_dir, 'reduce.done.%d'),
-        n_shards=args.n_reduce_shards)
+        n_shards=step.n_reducers)
 
     counter = combine_counters(
-        work_dir, args.n_map_shards, args.n_reduce_shards)
+        work_dir, step.n_mappers, step.n_reducers)
     logger.info(counter.show())
 
     if args.step_idx == args.total_steps - 1:

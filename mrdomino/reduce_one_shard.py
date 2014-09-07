@@ -1,21 +1,17 @@
-import imp
 import json
 import sys
 from os.path import join as path_join
 from functools import partial
 from contextlib import nested as nested_context
-from mrdomino import logger
-from mrdomino.util import MRCounter
+from mrdomino import logger, get_instance
 
 
 def reduce(shard, args):
 
     # find the reduce function.
-    reduce_module = imp.load_source('reduce_module', args.reduce_module)
-    reduce_func = getattr(reduce_module, args.reduce_func)
-
-    # the counters.
-    counters = MRCounter()
+    job = get_instance(args)
+    step = job.get_step(args.step_idx)
+    reduce_func = step.reducer
 
     # default to work_dir if output_dir is not set
     work_dir = args.work_dir
@@ -50,7 +46,7 @@ def reduce(shard, args):
             else:
                 # end previous run
                 if values:
-                    for kv in reduce_func(last_key, values, counters.incr):
+                    for kv in reduce_func(last_key, values):
                         count_written += 1
                         out_fh.write(json.dumps(kv) + '\n')
 
@@ -59,10 +55,11 @@ def reduce(shard, args):
                 values = [value]
         # dump any remaining values
         if values:
-            for kv in reduce_func(last_key, values, counters.incr):
+            for kv in reduce_func(last_key, values):
                 count_written += 1
                 out_fh.write(json.dumps(kv) + '\n')
 
+    counters = job._counters
     counters.incr("reducer", "seen", count_seen)
     counters.incr("reducer", "written", count_written)
 

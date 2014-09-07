@@ -12,18 +12,10 @@ def parse_args():
                     help='total number of steps')
     ap.add_argument('--shards', type=str,
                     help='which shards we are')
-    ap.add_argument('--n_shards', type=int,
-                    help='out of how many shards')
     ap.add_argument('--input_files', type=str, nargs='+',
                     help='input files')
-    ap.add_argument('--map_module', type=str, required=True,
-                    help='path to module containing mapper')
-    ap.add_argument('--map_func', type=str, required=True,
-                    help='mapper function name')
-    ap.add_argument('--combine_module', type=str, required=False,
-                    help='path to module containing combiner')
-    ap.add_argument('--combine_func', type=str, required=False,
-                    help='combiner function name')
+    ap.add_argument('--job_module', type=str, required=True)
+    ap.add_argument('--job_class', type=str, required=True)
     ap.add_argument('--work_dir', type=str, required=True,
                     help='directory containing map output files')
     ap.add_argument('--output_prefix', type=str, default='map.out',

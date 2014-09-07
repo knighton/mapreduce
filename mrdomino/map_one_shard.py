@@ -1,11 +1,10 @@
-import imp
 import json
 import math
 import itertools
 from os.path import join as path_join
 from subprocess import Popen, PIPE
-from mrdomino import logger
-from mrdomino.util import MRCounter, create_cmd, open_input
+from mrdomino import logger, get_instance
+from mrdomino.util import create_cmd, open_input
 
 
 def each_input_line(input_files, shard, n_shards):
@@ -32,24 +31,26 @@ def each_input_line(input_files, shard, n_shards):
 
 
 def map(shard, args):
-    assert 0 <= shard < args.n_shards
 
     # find the map function.
-    map_module = imp.load_source('map_module', args.map_module)
-    map_func = getattr(map_module, args.map_func)
+    job = get_instance(args)
+    step = job.get_step(args.step_idx)
+    map_func = step.mapper
+    n_shards = step.n_mappers
+    combine_func = step.combiner
 
-    # the counters.
-    counters = MRCounter()
+    assert 0 <= shard < n_shards
 
-    if args.combine_func is None:
+    if combine_func is None:
         out_fn = path_join(args.work_dir, args.output_prefix + '.%d' % shard)
         logger.info("mapper output -> {}".format(out_fn))
         proc_sort = Popen(['sort', '-o', out_fn], bufsize=4096, stdin=PIPE)
         proc = proc_sort
     else:
         cmd_opts = ['python', '-m', 'mrdomino.combine',
-                    '--combine_module', args.combine_module,
-                    '--combine_func', args.combine_func,
+                    '--job_module', args.job_module,
+                    '--job_class', args.job_class,
+                    '--step_idx', str(args.step_idx),
                     '--work_dir', args.work_dir,
                     '--output_prefix', args.output_prefix,
                     '--shard', str(shard)]
@@ -67,13 +68,14 @@ def map(shard, args):
     count_written = 0
     count_seen = 0
     with proc_sort.stdin as in_fh:
-        for line in each_input_line(args.input_files, shard, args.n_shards):
+        for line in each_input_line(args.input_files, shard, n_shards):
             count_seen += 1
             k, v = json.loads(line) if unpack_tuple else (None, line)
-            for kv in map_func(k, v, counters.incr):
+            for kv in map_func(k, v):
                 in_fh.write(json.dumps(kv) + '\n')
                 count_written += 1
 
+    counters = job._counters
     counters.incr("mapper", "seen", count_seen)
     counters.incr("mapper", "written", count_written)
 
@@ -85,7 +87,7 @@ def map(shard, args):
 
     # write how many entries were written for reducer balancing purposes.
     # note that if combiner is present, we delegate this responsibility to it.
-    if args.combine_func is not None:
+    if combine_func is not None:
         f = path_join(args.work_dir, args.output_prefix + '_count.%d' % shard)
         logger.info("mapper lines written -> {}".format(f))
         with open(f, 'w') as fh:

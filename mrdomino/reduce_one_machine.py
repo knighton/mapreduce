@@ -12,12 +12,8 @@ def parse_args():
                     help='total number of steps')
     ap.add_argument('--shards', type=str,
                     help='which shards we are')
-    ap.add_argument('--n_shards', type=int,
-                    help='out of how many shards')
-    ap.add_argument('--reduce_module', type=str,
-                    help='path to module containing reducer')
-    ap.add_argument('--reduce_func', type=str,
-                    help='reduce function name')
+    ap.add_argument('--job_module', type=str, required=True)
+    ap.add_argument('--job_class', type=str, required=True)
     ap.add_argument('--work_dir', type=str, required=True,
                     help='directory containing reduce input files')
     ap.add_argument('--output_dir', type=str, default=None,
