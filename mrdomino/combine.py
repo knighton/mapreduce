@@ -1,18 +1,15 @@
 import sys
-import imp
 import json
 from os.path import join as path_join
 from argparse import ArgumentParser, FileType
-from mrdomino import logger
-from mrdomino.util import MRCounter
+from mrdomino import logger, get_instance
 
 
 def parse_args():
     ap = ArgumentParser()
-    ap.add_argument('--combine_module', type=str, required=False,
-                    help='path to module containing combiner')
-    ap.add_argument('--combine_func', type=str, required=False,
-                    help='combiner function name')
+    ap.add_argument('--job_module', type=str, required=True)
+    ap.add_argument('--job_class', type=str, required=True)
+    ap.add_argument('--step_idx', type=int, required=True)
     ap.add_argument('--input', type=FileType('r'), default=sys.stdin,
                     help='string that input files are prefixed with')
     ap.add_argument('--work_dir', type=str, required=True,
@@ -30,11 +27,9 @@ def main():
     args = parse_args()
 
     # find the combine function.
-    combine_module = imp.load_source('combine_module', args.combine_module)
-    combine_func = getattr(combine_module, args.combine_func)
-
-    # the counters.
-    counters = MRCounter()
+    job = get_instance(args)
+    step = job.get_step(args.step_idx)
+    combine_func = step.combiner
 
     in_fh = args.input
     out_fn = path_join(args.work_dir, args.output_prefix + '.%d' % args.shard)
@@ -55,7 +50,7 @@ def main():
             else:
                 # end previous run
                 if values:
-                    for kv in combine_func(last_key, values, counters.incr):
+                    for kv in combine_func(last_key, values):
                         count_written += 1
                         out_fh.write(json.dumps(kv) + '\n')
 
@@ -64,10 +59,11 @@ def main():
                 values = [value]
         # dump any remaining values
         if values:
-            for kv in combine_func(last_key, values, counters.incr):
+            for kv in combine_func(last_key, values):
                 count_written += 1
                 out_fh.write(json.dumps(kv) + '\n')
 
+    counters = job._counters
     counters.incr("combiner", "seen", count_seen)
     counters.incr("combiner", "written", count_written)
 
