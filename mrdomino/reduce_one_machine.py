@@ -1,3 +1,5 @@
+import traceback
+from StringIO import StringIO
 from argparse import ArgumentParser
 from multiprocessing import Pool
 from mrdomino import reduce_one_shard, logger
@@ -32,13 +34,20 @@ def parse_args():
 
 
 def do_shard(t):
-
-    # unwrap argument
-    args, shard = t
-
-    with MRTimer() as timer:
-        reduce_one_shard.reduce(shard, args)
-    logger.info("Shard {} reduced: {}".format(shard, str(timer)))
+    # Uses workaround to show traceback of uncaught exceptions (which by
+    # default python's multiprocessing module fails to provide):
+    # http://seasonofcode.com/posts/python-multiprocessing-and-exceptions.html
+    try:
+        args, shard = t  # unwrap argument
+        with MRTimer() as timer:
+            reduce_one_shard.reduce(shard, args)
+        logger.info("Shard {} reduced: {}".format(shard, str(timer)))
+    except Exception as e:
+        exc_buffer = StringIO()
+        traceback.print_exc(file=exc_buffer)
+        logger.error('Uncaught exception while reducing shard {}. {}'
+                     .format(shard, exc_buffer.getvalue()))
+        raise e
 
 
 def main():

@@ -29,7 +29,6 @@ Example usage (see complete example at examples/example.py):
             """ defines reducer for the 2nd step """
             yield key, val
 
-
         def steps(self):
             return [
                 MRStep(

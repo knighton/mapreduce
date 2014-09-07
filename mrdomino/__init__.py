@@ -5,7 +5,6 @@ import logging
 from pkg_resources import resource_filename
 from tempfile import mkdtemp
 from abc import abstractmethod
-
 from mrdomino import util
 from mrdomino.util import MRCounter
 
