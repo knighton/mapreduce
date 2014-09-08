@@ -49,6 +49,8 @@ def main():
     old_index = 0
     for count, line in enumerate(heapq.merge(*sources)):
         key = json.loads(line)[0]
+        if num_entries == 0:
+            continue
         index = count * n_output_files / num_entries
 
         # postpone switching to new index until a change in key also observed

@@ -271,7 +271,7 @@ def main():
             for kv in read_lines(files):
                 if unpack_tuple:
                     _, v = json.loads(kv)
-                    v = json.dumps(v)
+                    v = json.dumps(v) + "\n"
                 else:
                     v = kv
                 out_fh.write(v)

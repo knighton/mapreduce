@@ -11,7 +11,7 @@ class MRSummary(MRJob):
 
     INPUT_PROTOCOL = mr_protocol.JSONValueProtocol
     INTERNAL_PROTOCOL = mr_protocol.JSONProtocol
-    OUTPUT_PROTOCOL = mr_protocol.JSONValueProtocol
+    OUTPUT_PROTOCOL = mr_protocol.JSONProtocol
 
     def map1(self, _, j):
         key = j[u'object'][u'user_id']
