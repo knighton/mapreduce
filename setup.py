@@ -1,9 +1,10 @@
 import re
 from functools import partial
 from setuptools import setup, find_packages
-from pkg_resources import resource_string
+from pkg_resources import resource_string, resource_filename
 
 get_resource = partial(resource_string, __name__)
+get_resource_name = partial(resource_filename, __name__)
 
 # Regex groups: 0: URL part, 1: package name, 2: package version
 find_egg = partial(
@@ -42,12 +43,13 @@ dependency_links = dep_links1 + dep_links2
 
 setup(
     name="mrdomino",
-    version="0.0.2",
+    version="0.0.3",
     author="James Knighton",
     author_email="knighton@livefyre.com",
     description=("Map-Reduce utility for DominoUp"),
     license="MIT",
     url='https://github.com/knighton/mapreduce',
+    package_data={'': [get_resource_name("mrdomino/exec.sh")]},
     packages=find_packages(exclude=['tests']),
     install_requires=install_requires,
     dependency_links=dependency_links,

@@ -1,4 +1,4 @@
-.PHONY: clean virtualenv upgrade test package dev run
+.PHONY: clean lint virtualenv upgrade test package dev run
 
 PACKAGE = mrdomino
 PYENV = . env/bin/activate;
@@ -22,6 +22,9 @@ clean:
 	test -f env/bin/activate && $(PYTHON) setup.py clean
 	find $(PACKAGE) -type f -name "*.pyc" -exec rm {} \;
 	rm -rf tmp/* out/*
+
+lint: dev
+	$(PYTHON) setup.py lint
 
 nuke: clean
 	rm -rf *.egg *.egg-info env bin cover coverage.xml nosetests.xml
