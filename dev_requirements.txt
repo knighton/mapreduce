@@ -2,4 +2,4 @@ nose
 coverage
 nosexcover
 mock
-setuptools-lint==0.3
+setuptools-lint
