@@ -1,5 +1,4 @@
 import json
-import sys
 from os.path import join as path_join
 from functools import partial
 from contextlib import nested as nested_context
@@ -23,15 +22,10 @@ def reduce(shard, args):
     out_fn = path_join(output_dir, args.output_prefix + '.%d' % shard)
     logger.info("reducer {}: output -> {}".format(shard, out_fn))
 
-    if args.input_prefix is not None:
-        # otherwise use input prefix
-        in_f = path_join(work_dir, args.input_prefix + '.%d' % shard)
-        logger.info("reducer {}: input <- {}".format(shard, in_f))
-        input_stream = partial(open, in_f, 'r')
-
-    else:
-        # otherwise use stdin
-        input_stream = sys.stdin
+    assert args.input_prefix is not None
+    in_f = path_join(work_dir, args.input_prefix + '.%d' % shard)
+    logger.info("reducer {}: input <- {}".format(shard, in_f))
+    input_stream = partial(open, in_f, 'r')
 
     if args.step_idx >= 0:
         if job.INTERNAL_PROTOCOL == protocol.JSONProtocol:
