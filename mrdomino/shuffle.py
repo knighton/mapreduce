@@ -4,7 +4,7 @@ from glob import glob
 from argparse import ArgumentParser
 from os.path import join as path_join
 from itertools import imap
-from mrdomino import get_step
+from mrdomino import get_step, logger
 from mrdomino.util import read_files
 
 
@@ -28,8 +28,14 @@ def main():
     args = parse_args()
 
     # count exactly how many input lines we have so we can balance work.
-    count_ff = glob(path_join(args.work_dir,
-                              args.input_prefix + '_count.[0-9]*'))
+    glob_pattern = path_join(args.work_dir,
+                             args.input_prefix + '_count.[0-9]*')
+    count_ff = glob(glob_pattern)
+    if not count_ff:
+        raise RuntimeError("Step {} shuffler: not input files found matching "
+                           "pattern {}".format(args.step_idx, glob_pattern))
+    logger.info("Step {} shuffler: counting entries from {}"
+                .format(args.step_idx, count_ff))
     num_entries = sum(imap(int, read_files(count_ff)))
 
     in_ff = sorted(glob(path_join(args.work_dir,
@@ -47,16 +53,17 @@ def main():
     # accompanied by a key change, otherwise index change is postponed.
     old_key = None
     old_index = 0
+    lines_written = 0
     for count, line in enumerate(heapq.merge(*sources)):
         key = json.loads(line)[0]
-        if num_entries == 0:
-            continue
         index = count * n_output_files / num_entries
 
         # postpone switching to new index until a change in key also observed
         if old_index != index and old_key != key:
             old_index = index
         outputs[old_index].write(line)
+        lines_written += 1
+
         old_key = key
 
     for source in sources:
@@ -65,6 +72,8 @@ def main():
     for output in outputs:
         output.close()
 
+    logger.info("Step {} shuffler: lines written: {}"
+                .format(args.step_idx, lines_written))
 
 if __name__ == "__main__":
     main()

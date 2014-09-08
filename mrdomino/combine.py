@@ -31,9 +31,10 @@ def main():
     step = job.get_step(args.step_idx)
     combine_func = step.combiner
 
+    shard = args.shard
     in_fh = args.input
-    out_fn = path_join(args.work_dir, args.output_prefix + '.%d' % args.shard)
-    logger.info("combiner output -> {}".format(out_fn))
+    out_fn = path_join(args.work_dir, args.output_prefix + '.%d' % shard)
+    logger.info("combiner {}: output -> {}".format(shard, out_fn))
 
     last_key = None
     values = []
@@ -68,14 +69,14 @@ def main():
     counters.incr("combiner", "written", count_written)
 
     # write out the counters to file.
-    f = path_join(args.work_dir, 'combine.counters.%d' % args.shard)
-    logger.info("combiner counters -> {}".format(f))
+    f = path_join(args.work_dir, 'combine.counters.%d' % shard)
+    logger.info("combiner {}: counters -> {}".format(shard, f))
     with open(f, 'w') as fh:
         fh.write(counters.serialize())
 
     # write how many entries were written for reducer balancing purposes.
-    f = path_join(args.work_dir, args.output_prefix + '_count.%d' % args.shard)
-    logger.info("combiner lines written -> {}".format(f))
+    f = path_join(args.work_dir, args.output_prefix + '_count.%d' % shard)
+    logger.info("combiner {}: lines written -> {}".format(shard, f))
     with open(f, 'w') as fh:
         fh.write(str(count_written))
 

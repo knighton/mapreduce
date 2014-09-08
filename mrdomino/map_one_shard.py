@@ -43,7 +43,7 @@ def map(shard, args):
 
     if combine_func is None:
         out_fn = path_join(args.work_dir, args.output_prefix + '.%d' % shard)
-        logger.info("mapper output -> {}".format(out_fn))
+        logger.info("mapper {}: output -> {}".format(shard, out_fn))
         proc_sort = Popen(['sort', '-o', out_fn], bufsize=4096, stdin=PIPE)
         proc = proc_sort
     else:
@@ -54,7 +54,8 @@ def map(shard, args):
                     '--work_dir', args.work_dir,
                     '--output_prefix', args.output_prefix,
                     '--shard', str(shard)]
-        logger.info("Starting combiner: {}".format(create_cmd(cmd_opts)))
+        logger.info("mapper {}: starting combiner: {}"
+                    .format(shard, create_cmd(cmd_opts)))
         proc_combine = Popen(cmd_opts, bufsize=4096, stdin=PIPE)
         proc_sort = Popen(['sort'], bufsize=4096, stdin=PIPE,
                           stdout=proc_combine.stdin)
@@ -102,15 +103,15 @@ def map(shard, args):
 
     # write out the counters to file.
     f = path_join(args.work_dir, 'map.counters.%d' % shard)
-    logger.info("mapper counters -> {}".format(f))
+    logger.info("mapper {}: counters -> {}".format(shard, f))
     with open(f, 'w') as fh:
         fh.write(counters.serialize())
 
     # write how many entries were written for reducer balancing purposes.
     # note that if combiner is present, we delegate this responsibility to it.
-    if combine_func is not None:
+    if combine_func is None:
         f = path_join(args.work_dir, args.output_prefix + '_count.%d' % shard)
-        logger.info("mapper lines written -> {}".format(f))
+        logger.info("mapper {}: lines written -> {}".format(shard, f))
         with open(f, 'w') as fh:
             fh.write(str(count_written))
 
@@ -119,5 +120,6 @@ def map(shard, args):
 
     # finally note that we are done.
     f = path_join(args.work_dir, 'map.done.%d' % shard)
+    logger.info("mapper {}: done -> {}".format(shard, f))
     with open(f, 'w') as fh:
         fh.write('')
