@@ -46,7 +46,8 @@ class MRCounter(collections.Iterable):
         return self
 
     def show(self):
-        output = ['Counters:']
+        """Display counter content in a human-friendly way"""
+        output = []
         for key, sub_dict in sorted(self.iteritems()):
             output.append('  %s:' % key)
             for sub_key, count in sorted(sub_dict.iteritems()):
@@ -75,7 +76,7 @@ class MRCounter(collections.Iterable):
         })
 
     @classmethod
-    def deserialize(cls, s):
+    def deserialize(cls, string):
         """
 
         >>> c = MRCounter()
@@ -86,14 +87,14 @@ class MRCounter(collections.Iterable):
         True
 
         """
-        r = MRCounter()
-        j = json.loads(s)
-        for d in j['counters']:
-            key = d['key']
-            sub_key = d['sub_key']
-            count = d['count']
-            r.incr(key, sub_key, count)
-        return r
+        counter = MRCounter()
+        j = json.loads(string)
+        for obj in j['counters']:
+            key = obj['key']
+            sub_key = obj['sub_key']
+            count = obj['count']
+            counter.incr(key, sub_key, count)
+        return counter
 
     @classmethod
     def sum(cls, iterable):
@@ -134,16 +135,16 @@ class MRTimer(object):
 def wait_cmd(cmd, logger, name="Command"):
     """Execute command and wait for it to finish"""
     try:
-        with MRTimer() as t:
+        with MRTimer() as timer:
             retcode = subprocess.call(cmd, shell=True)
         if retcode < 0:
             logger.error("{} terminated by signal {}".format(name, -retcode))
         else:
             logger.info(
                 "{} finished with status code {}".format(name, retcode))
-        logger.info("{} run stats: {}".format(name, str(t)))
-    except OSError as e:
-        logger.error("{} failed: {}".format(name, e))
+        logger.info("{} run stats: {}".format(name, str(timer)))
+    except OSError as error:
+        logger.error("{} failed: {}".format(name, error))
     return retcode
 
 
@@ -162,22 +163,22 @@ def create_cmd(parts):
 
 def read_files(filenames):
     """Returns an iterator over files in a list of files"""
-    for f in filenames:
-        with open(f, 'r') as fh:
-            yield fh.read()
+    for filename in filenames:
+        with open(filename, 'r') as filehandle:
+            yield filehandle.read()
 
 
 def read_lines(filenames):
     """Returns an iterator over lines in a list of files"""
-    for f in filenames:
-        with open(f, 'r') as fh:
-            for line in fh:
+    for filename in filenames:
+        with open(filename, 'r') as filehandle:
+            for line in filehandle:
                 yield line
 
 
 def open_input(filename, mode='r'):
     """Transparently open input files, whether plain text or gzip"""
-    if re.match('.*\.gz$', filename) is None:
+    if re.match(r'.*\.gz$', filename) is None:
         # no .gz extension, assume a plain text file
         return open(filename, mode)
     else:

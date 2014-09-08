@@ -12,30 +12,31 @@ from mrdomino.util import MRCounter, create_cmd, read_files, read_lines, \
 
 
 def parse_args():
-    ap = ArgumentParser()
-    ap.add_argument('--input_files', type=str, nargs='+',
-                    help='list of input files to mappers')
-    ap.add_argument('--output_dir', type=str, default='out',
-                    help='directory to write output files to')
-    ap.add_argument('--work_dir', type=str, required=True,
-                    help='temporary working directory')
-    ap.add_argument('--job_module', type=str, required=True)
-    ap.add_argument('--job_class', type=str, required=True)
-    ap.add_argument('--step_idx', type=int, required=True,
-                    help='Index of this step (zero-base)')
-    ap.add_argument('--total_steps', type=int, required=True,
-                    help='total number of steps')
-    ap.add_argument('--use_domino', type=int, default=1,
-                    help='which platform to run on (local or domino)')
-    ap.add_argument('--n_concurrent_machines', type=int, default=2,
-                    help='maximum number of domino jobs to be running at once')
-    ap.add_argument('--n_shards_per_machine', type=int, default=1,
-                    help='number of processes to spawn per domino job (-1 for all)')
-
-    ap.add_argument('--poll_done_interval_sec', type=int, default=45,
-                    help='interval between successive checks that we are done')
-
-    args = ap.parse_args()
+    parser = ArgumentParser()
+    parser.add_argument('--input_files', type=str, nargs='+',
+                        help='list of input files to mappers')
+    parser.add_argument('--output_dir', type=str, default='out',
+                        help='directory to write output files to')
+    parser.add_argument('--work_dir', type=str, required=True,
+                        help='temporary working directory')
+    parser.add_argument('--job_module', type=str, required=True)
+    parser.add_argument('--job_class', type=str, required=True)
+    parser.add_argument('--step_idx', type=int, required=True,
+                        help='Index of this step (zero-base)')
+    parser.add_argument('--total_steps', type=int, required=True,
+                        help='total number of steps')
+    parser.add_argument('--use_domino', type=int, default=1,
+                        help='which platform to run on (local or domino)')
+    parser.add_argument('--n_concurrent_machines', type=int, default=2,
+                        help='maximum number of domino jobs to be running '
+                        'at once')
+    parser.add_argument('--n_shards_per_machine', type=int, default=1,
+                        help='number of processes to spawn per domino job '
+                        '(-1 for all)')
+    parser.add_argument('--poll_done_interval_sec', type=int, default=45,
+                        help='interval between successive checks that we '
+                        'are done')
+    args = parser.parse_args()
 
     # verify functions exist.
     step = get_step(args)
@@ -52,17 +53,18 @@ class ShardState(object):
 
 
 def combine_counters(work_dir, n_map_shards, n_reduce_shards):
-    ff = map(lambda (work_dir, shard):
-             os.path.join(work_dir, 'map.counters.%d' % shard),
-             zip([work_dir] * n_map_shards, range(n_map_shards)))
-    ff += map(lambda (work_dir, shard):
-              os.path.join(work_dir, 'combine.counters.%d' % shard),
-              zip([work_dir] * n_map_shards, range(n_map_shards)))
-    ff += map(lambda (work_dir, shard):
-              os.path.join(work_dir, 'reduce.counters.%d' % shard),
-              zip([work_dir] * n_reduce_shards, range(n_reduce_shards)))
+    filenames = map(lambda (work_dir, shard):
+                    os.path.join(work_dir, 'map.counters.%d' % shard),
+                    zip([work_dir] * n_map_shards, range(n_map_shards)))
+    filenames += map(lambda (work_dir, shard):
+                     os.path.join(work_dir, 'combine.counters.%d' % shard),
+                     zip([work_dir] * n_map_shards, range(n_map_shards)))
+    filenames += map(lambda (work_dir, shard):
+                     os.path.join(work_dir, 'reduce.counters.%d' % shard),
+                     zip([work_dir] * n_reduce_shards, range(n_reduce_shards)))
     return MRCounter.sum(
-        imap(MRCounter.deserialize, read_files(filter(os.path.exists, ff))))
+        imap(MRCounter.deserialize,
+             read_files(filter(os.path.exists, filenames))))
 
 
 def update_shards_done(args, done_pattern, num_shards, use_domino,
@@ -71,8 +73,8 @@ def update_shards_done(args, done_pattern, num_shards, use_domino,
     if args.use_domino:
         os.system('domino download')
     for i in range(num_shards):
-        f = done_pattern % i
-        if os.path.isfile(f):
+        filename = done_pattern % i
+        if os.path.isfile(filename):
             shard2state[i] = ShardState.DONE
 
 
@@ -154,13 +156,13 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
 
         # start the jobs.
         if start_me:
-            logger.info('Starting shard groups: %s' % start_me)
+            logger.info('Starting shard groups: %s', start_me)
         for shards in start_me:
             # execute command.
-            s = command % ','.join(map(str, shards))
-            s = wrap_cmd(s, args.use_domino)
-            logger.info("Starting process: {}".format(s))
-            os.system(s)
+            cmd = command % ','.join(map(str, shards))
+            cmd = wrap_cmd(cmd, args.use_domino)
+            logger.info("Starting process: {}".format(cmd))
+            os.system(cmd)
 
             # note them as started.
             for shard in shards:
@@ -173,16 +175,16 @@ def schedule_machines(args, command, done_file_pattern, n_shards):
 def main():
 
     args = parse_args()
-    logger.info('Mapreduce step: %s' % args)
+    logger.info('Mapreduce step: %s', args)
 
-    logger.info('%d input files.' % len(args.input_files))
+    logger.info('%d input files.', len(args.input_files))
 
     work_dir = args.work_dir
-    logger.info('Working directory: %s' % work_dir)
+    logger.info('Working directory: %s', work_dir)
 
     job = get_instance(args)
     step = job.get_step(args.step_idx)
-    logger.info('Starting %d mappers.' % step.n_mappers)
+    logger.info('Starting %d mappers.', step.n_mappers)
 
     # create map command
     cmd_opts = [
@@ -204,10 +206,8 @@ def main():
 
     counter = combine_counters(
         work_dir, step.n_mappers, step.n_reducers)
-    logger.info(counter.show())
 
     # shuffle mapper outputs to reducer inputs.
-    logger.info('Shuffling data.')
     cmd = create_cmd([EXEC_SCRIPT, 'mrdomino.shuffle',
                       '--work_dir', work_dir,
                       '--input_prefix', 'map.out',
@@ -217,7 +217,7 @@ def main():
                       '--step_idx', args.step_idx])
     wait_cmd(cmd, logger, "Shuffling")
 
-    logger.info('Starting %d reducers.' % step.n_reducers)
+    logger.info('Starting %d reducers.', step.n_reducers)
     cmd = create_cmd(['mrdomino.reduce_one_machine',
                       '--step_idx', args.step_idx,
                       '--shards', '%s',
@@ -233,7 +233,7 @@ def main():
 
     counter = combine_counters(
         work_dir, step.n_mappers, step.n_reducers)
-    logger.info(counter.show())
+    logger.info(('Step %d counters:\n' % args.step_idx) + counter.show())
 
     if args.step_idx == args.total_steps - 1:
 
@@ -258,17 +258,17 @@ def main():
 
         # make sure that files are sorted by shard number
         glob_prefix = 'reduce.out'
-        files = glob(path_join(work_dir, glob_prefix + '.[0-9]*'))
-        prefix_match = re.compile('.*\\b' + glob_prefix + '\.(\d+)$')
+        filenames = glob(path_join(work_dir, glob_prefix + '.[0-9]*'))
+        prefix_match = re.compile('.*\\b' + glob_prefix + '\\.(\\d+)$')
         presorted = []
-        for fn in files:
-            match = prefix_match.match(fn)
+        for filename in filenames:
+            match = prefix_match.match(filename)
             if match is not None:
-                presorted.append((int(match.group(1)), fn))
-        files = [fn[1] for fn in sorted(presorted)]
+                presorted.append((int(match.group(1)), filename))
+        filenames = [filename[1] for filename in sorted(presorted)]
         out_f = path_join(args.output_dir, 'reduce.out')
         with open(out_f, 'w') as out_fh:
-            for kv in read_lines(files):
+            for kv in read_lines(filenames):
                 if unpack_tuple:
                     _, v = json.loads(kv)
                     v = json.dumps(v) + "\n"
