@@ -43,7 +43,7 @@ dependency_links = dep_links1 + dep_links2
 
 setup(
     name="mrdomino",
-    version="0.0.2",
+    version="0.0.3",
     author="James Knighton",
     author_email="knighton@livefyre.com",
     description=("Map-Reduce utility for DominoUp"),
