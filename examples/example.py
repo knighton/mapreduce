@@ -1,7 +1,6 @@
 import re
 import glob
-import json
-from mrdomino import MRJob, MRStep, MRSettings
+from mrdomino import MRJob, MRStep, MRSettings, protocol as mr_protocol
 
 
 def get_tld(domain):
@@ -9,8 +8,12 @@ def get_tld(domain):
 
 
 class MRSummary(MRJob):
-    def map1(self, _, line):
-        j = json.loads(line)
+
+    INPUT_PROTOCOL = mr_protocol.JSONValueProtocol
+    INTERNAL_PROTOCOL = mr_protocol.JSONProtocol
+    OUTPUT_PROTOCOL = mr_protocol.JSONProtocol
+
+    def map1(self, _, j):
         key = j[u'object'][u'user_id']
         uname, domain = key.split("@")
         tld = get_tld(domain)

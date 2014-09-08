@@ -8,6 +8,18 @@ from abc import abstractmethod
 from mrdomino import util
 from mrdomino.util import MRCounter
 
+
+class protocol(object):
+    JSONProtocol = 0
+    JSONValueProtocol = 1
+    PickleProtocol = 2       # unsupported
+    PickleValueProtocol = 3  # unsupported
+    RawProtocol = 4          # unsupported
+    RawValueProtocol = 5     # unsupported
+    ReprProtocol = 6         # unsupported
+    ReprValueProtocol = 7    # unsupported
+
+
 logger = logging.getLogger('mrdomino')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stderr)
@@ -112,6 +124,11 @@ def mapreduce(job_class):
 
 
 class MRJob(object):
+
+    INPUT_PROTOCOL = protocol.JSONValueProtocol
+    INTERNAL_PROTOCOL = protocol.JSONProtocol
+    OUTPUT_PROTOCOL = protocol.JSONValueProtocol
+
     def __init__(self, counters=None):
         self._settings = self.settings()
         self._steps = self.steps()
