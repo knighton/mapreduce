@@ -19,7 +19,7 @@ dev: env/bin/activate dev_requirements.txt
 	$(PYENV) pip install --process-dependency-links -e . -r dev_requirements.txt
 
 clean:
-	$(PYTHON) setup.py clean
+	test -f env/bin/activate && $(PYTHON) setup.py clean
 	find $(PACKAGE) -type f -name "*.pyc" -exec rm {} \;
 	rm -rf tmp/* out/*
 
