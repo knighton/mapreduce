@@ -10,8 +10,6 @@ def parse_args():
     ap = ArgumentParser()
     ap.add_argument('--step_idx', type=int, required=True,
                     help='Index of this step (zero-base)')
-    ap.add_argument('--total_steps', type=int, required=True,
-                    help='total number of steps')
     ap.add_argument('--shards', type=str,
                     help='which shards we are')
     ap.add_argument('--job_module', type=str, required=True)

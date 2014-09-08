@@ -3,7 +3,7 @@ import math
 import itertools
 from os.path import join as path_join
 from subprocess import Popen, PIPE
-from mrdomino import logger, get_instance
+from mrdomino import logger, get_instance, protocol
 from mrdomino.util import create_cmd, open_input
 
 
@@ -60,7 +60,27 @@ def map(shard, args):
                           stdout=proc_combine.stdin)
         proc = proc_combine
 
-    unpack_tuple = args.step_idx > 0
+    if args.step_idx == 0:
+        # first step
+        if job.INPUT_PROTOCOL == protocol.JSONProtocol:
+            unpack_tuple = True
+        elif job.INPUT_PROTOCOL == protocol.JSONValueProtocol:
+            unpack_tuple = False
+        else:
+            raise ValueError("unsupported protocol: {}"
+                             .format(job.INPUT_PROTOCOL))
+    elif args.step_idx > 0:
+        # intermediate step
+        if job.INTERNAL_PROTOCOL == protocol.JSONProtocol:
+            unpack_tuple = True
+        elif job.INTERNAL_PROTOCOL == protocol.JSONValueProtocol:
+            unpack_tuple = False
+        else:
+            raise ValueError("unsupported protocol: {}"
+                             .format(job.INTERNAL_PROTOCOL))
+    else:
+        raise ValueError("step_idx={} cannot be negative"
+                         .format(args.step_idx))
 
     # process each line of input and sort for the merge step.
     # using with block here ensures that proc_sort.stdin is closed on exit and
@@ -70,7 +90,8 @@ def map(shard, args):
     with proc_sort.stdin as in_fh:
         for line in each_input_line(args.input_files, shard, n_shards):
             count_seen += 1
-            k, v = json.loads(line) if unpack_tuple else (None, line)
+            kv = json.loads(line)
+            k, v = kv if unpack_tuple else (None, kv)
             for kv in map_func(k, v):
                 in_fh.write(json.dumps(kv) + '\n')
                 count_written += 1

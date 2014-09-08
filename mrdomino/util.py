@@ -161,10 +161,18 @@ def create_cmd(parts):
 
 
 def read_files(filenames):
-    """Returns an iterator over lines in a list of files"""
+    """Returns an iterator over files in a list of files"""
     for f in filenames:
         with open(f, 'r') as fh:
             yield fh.read()
+
+
+def read_lines(filenames):
+    """Returns an iterator over lines in a list of files"""
+    for f in filenames:
+        with open(f, 'r') as fh:
+            for line in fh:
+                yield line
 
 
 def open_input(filename, mode='r'):

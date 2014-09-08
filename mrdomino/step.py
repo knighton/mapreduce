@@ -2,11 +2,13 @@ from argparse import ArgumentParser
 import os
 import re
 import time
+import json
 from os.path import join as path_join
 from glob import glob
 from itertools import imap
-from mrdomino import EXEC_SCRIPT, logger, get_step
-from mrdomino.util import MRCounter, create_cmd, read_files, wait_cmd
+from mrdomino import EXEC_SCRIPT, logger, get_step, get_instance, protocol
+from mrdomino.util import MRCounter, create_cmd, read_files, read_lines, \
+    wait_cmd
 
 
 def parse_args():
@@ -23,7 +25,6 @@ def parse_args():
                     help='Index of this step (zero-base)')
     ap.add_argument('--total_steps', type=int, required=True,
                     help='total number of steps')
-
     ap.add_argument('--use_domino', type=int, default=1,
                     help='which platform to run on (local or domino)')
     ap.add_argument('--n_concurrent_machines', type=int, default=2,
@@ -36,7 +37,7 @@ def parse_args():
 
     args = ap.parse_args()
 
-    ## verify functions exist.
+    # verify functions exist.
     step = get_step(args)
     assert step.mapper is not None
     assert step.reducer is not None
@@ -179,14 +180,14 @@ def main():
     work_dir = args.work_dir
     logger.info('Working directory: %s' % work_dir)
 
-    step = get_step(args)
+    job = get_instance(args)
+    step = job.get_step(args.step_idx)
     logger.info('Starting %d mappers.' % step.n_mappers)
 
     # create map command
     cmd_opts = [
         'mrdomino.map_one_machine',
         '--step_idx', args.step_idx,
-        '--total_steps', args.total_steps,
         '--shards', '%s',
         '--input_files', ' '.join(args.input_files),
         '--job_module', args.job_module,
@@ -219,7 +220,6 @@ def main():
     logger.info('Starting %d reducers.' % step.n_reducers)
     cmd = create_cmd(['mrdomino.reduce_one_machine',
                       '--step_idx', args.step_idx,
-                      '--total_steps', args.total_steps,
                       '--shards', '%s',
                       '--job_module', args.job_module,
                       '--job_class', args.job_class,
@@ -239,6 +239,23 @@ def main():
 
         logger.info('Joining reduce outputs')
 
+        if job.INTERNAL_PROTOCOL == protocol.JSONProtocol and \
+                job.OUTPUT_PROTOCOL == protocol.JSONValueProtocol:
+            unpack_tuple = True
+        elif job.INTERNAL_PROTOCOL == protocol.JSONValueProtocol and \
+                job.OUTPUT_PROTOCOL == protocol.JSONProtocol:
+            raise RuntimeError("if internal protocol is value-based, "
+                               "output protocol must also be so")
+        elif job.INTERNAL_PROTOCOL == protocol.JSONProtocol and \
+                job.OUTPUT_PROTOCOL == protocol.JSONProtocol:
+            unpack_tuple = False
+        elif job.INTERNAL_PROTOCOL == protocol.JSONValueProtocol and \
+                job.OUTPUT_PROTOCOL == protocol.JSONValueProtocol:
+            unpack_tuple = False
+        else:
+            raise ValueError("unsupported output protocol: {}"
+                             .format(job.OUTPUT_PROTOCOL))
+
         # make sure that files are sorted by shard number
         glob_prefix = 'reduce.out'
         files = glob(path_join(work_dir, glob_prefix + '.[0-9]*'))
@@ -251,8 +268,13 @@ def main():
         files = [fn[1] for fn in sorted(presorted)]
         out_f = path_join(args.output_dir, 'reduce.out')
         with open(out_f, 'w') as out_fh:
-            for line in read_files(files):
-                out_fh.write(line)
+            for kv in read_lines(files):
+                if unpack_tuple:
+                    _, v = json.loads(kv)
+                    v = json.dumps(v)
+                else:
+                    v = kv
+                out_fh.write(v)
 
     # done.
     logger.info('Mapreduce step done.')

@@ -3,7 +3,7 @@ import sys
 from os.path import join as path_join
 from functools import partial
 from contextlib import nested as nested_context
-from mrdomino import logger, get_instance
+from mrdomino import logger, get_instance, protocol
 
 
 def reduce(shard, args):
@@ -32,6 +32,18 @@ def reduce(shard, args):
         # otherwise use stdin
         input_stream = sys.stdin
 
+    if args.step_idx >= 0:
+        if job.INTERNAL_PROTOCOL == protocol.JSONProtocol:
+            unpack_tuple = False
+        elif job.INTERNAL_PROTOCOL == protocol.JSONValueProtocol:
+            unpack_tuple = True
+        else:
+            raise ValueError("unsupported protocol: {}"
+                             .format(job.INTERNAL_PROTOCOL))
+    else:
+        raise ValueError("step_idx={} cannot be negative"
+                         .format(args.step_idx))
+
     count_written = 0
     count_seen = 0
     with nested_context(input_stream(), open(out_fn, 'w')) as (in_fh, out_fh):
@@ -47,8 +59,9 @@ def reduce(shard, args):
                 # end previous run
                 if values:
                     for kv in reduce_func(last_key, values):
+                        k, v = kv if unpack_tuple else (None, kv)
                         count_written += 1
-                        out_fh.write(json.dumps(kv) + '\n')
+                        out_fh.write(json.dumps(v) + '\n')
 
                 # start new run
                 last_key = key
@@ -56,8 +69,9 @@ def reduce(shard, args):
         # dump any remaining values
         if values:
             for kv in reduce_func(last_key, values):
+                k, v = kv if unpack_tuple else (None, kv)
                 count_written += 1
-                out_fh.write(json.dumps(kv) + '\n')
+                out_fh.write(json.dumps(v) + '\n')
 
     counters = job._counters
     counters.incr("reducer", "seen", count_seen)
