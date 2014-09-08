@@ -21,11 +21,12 @@ def reduce(shard, args):
 
     # process each (key, value) pair.
     out_fn = path_join(output_dir, args.output_prefix + '.%d' % shard)
-    logger.info("reducer output -> {}".format(out_fn))
+    logger.info("reducer {}: output -> {}".format(shard, out_fn))
 
     if args.input_prefix is not None:
         # otherwise use input prefix
         in_f = path_join(work_dir, args.input_prefix + '.%d' % shard)
+        logger.info("reducer {}: input <- {}".format(shard, in_f))
         input_stream = partial(open, in_f, 'r')
 
     else:
@@ -79,11 +80,12 @@ def reduce(shard, args):
 
     # write out the counters to file.
     f = path_join(output_dir, 'reduce.counters.%d' % shard)
-    logger.info("reducer counters -> {}".format(f))
+    logger.info("reducer {}: counters -> {}".format(shard, f))
     with open(f, 'w') as fh:
         fh.write(counters.serialize())
 
     # finally note that we are done.
     f = path_join(output_dir, 'reduce.done.%d' % shard)
+    logger.info("reducer {}: done -> {}".format(shard, f))
     with open(f, 'w') as fh:
         fh.write('')
